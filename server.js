@@ -115,16 +115,18 @@ async function login(client) {
     const tfForm  = $tf('form');
     const tfAction = tfForm.attr('action') || '';
     const tfUrl   = tfAction.startsWith('http') ? tfAction : `${BASE}${tfAction || '/login'}`;
+    // Collect all hidden fields, then find the TOTP input
+    const hiddenFields = {};
+    $tf('input[type="hidden"]').each((_, el) => {
+      const n = $tf(el).attr('name'), v = $tf(el).val() || '';
+      if (n) hiddenFields[n] = v;
+    });
     const tfField = $tf('input[type="text"], input[type="number"]')
-                      .filter((_, el) => !['amember_login'].includes($tf(el).attr('name') || ''))
-                      .first().attr('name') || 'amember_totp_code';
-    const tfAttemptId = $tf('input[name="login_attempt_id"]').val() || '';
+                      .filter((_, el) => !['amember_login','login'].includes($tf(el).attr('name') || ''))
+                      .first().attr('name') || 'pass';
     await client.post(
       tfUrl,
-      new URLSearchParams({
-        [tfField]        : totp(process.env.APEX_TOTP_SECRET),
-        login_attempt_id : tfAttemptId,
-      }).toString(),
+      new URLSearchParams({ ...hiddenFields, [tfField]: totp(process.env.APEX_TOTP_SECRET) }).toString(),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': finalUrl } }
     );
   }
