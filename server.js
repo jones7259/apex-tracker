@@ -119,17 +119,52 @@ async function login(client) {
   }
 }
 
+// ── Scrape account summary page for requirements ───────────────────────────
+async function fetchRequirements(client) {
+  try {
+    const summaryUrl = `${BASE}/member/account/summary?account=${ACCOUNT_ID}`;
+    const res = await client.get(summaryUrl);
+    if (typeof res.data !== 'string') return {};
+    const text = res.data.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+
+    const out = {};
+
+    // Min. Payout Balance / Profit Target  →  e.g. "$256,600.00"
+    const ptM = text.match(/(?:Min\.?\s*Payout\s*Balance|Profit\s*Target)\s*[:\s]+\$([\d,]+(?:\.\d+)?)/i);
+    if (ptM) out.profitTarget = parseFloat(ptM[1].replace(/,/g,''));
+
+    // Initial Balance
+    const ibM = text.match(/Initial\s*Balance\s*[:\s]+\$([\d,]+(?:\.\d+)?)/i);
+    if (ibM) out.initialBalance = parseFloat(ibM[1].replace(/,/g,''));
+
+    // Minimum Trading Days  →  e.g. "8 days fills"
+    const tdM = text.match(/Minimum\s*Trading\s*Days?\s*[:\s]+(\d+)/i);
+    if (tdM) out.minTradingDays = parseInt(tdM[1]);
+
+    // Trading Days >= $X Profit: Y days  →  e.g. "5 days with $150+ profit"
+    const pdM = text.match(/Trading\s*Days?\s*>=?\s*\$(\d+)\s*(?:Profit\s*)?[:\s]+(\d+)/i);
+    if (pdM) {
+      out.minProfitThreshold = parseInt(pdM[1]);
+      out.minProfitDays      = parseInt(pdM[2]);
+    }
+
+    return out;
+  } catch (e) {
+    console.error('Summary scrape error:', e.message);
+    return {};
+  }
+}
+
 // ── Core fetch ─────────────────────────────────────────────────────────────
 async function fetchApexData() {
   const client = makeClient();
   await login(client);
 
-  // Visit the trading page first — the browser always does this before the XHR,
-  // and the server may require it to establish proper session context.
+  // Visit the trading page first
   const tradingPageUrl = `${BASE}/member/account/trading?account=${ACCOUNT_ID}`;
   await client.get(tradingPageUrl);
 
-  // Now hit the JSON API endpoint (same XHR the browser's JS makes)
+  // Fetch trading details JSON
   const r = await client.get(DATA_URL, {
     params: { account_number: ACCOUNT_ID },
     headers: {
@@ -141,7 +176,6 @@ async function fetchApexData() {
 
   const json = r.data;
 
-  // If we got HTML back (not authenticated), throw immediately with context
   if (typeof json === 'string') {
     const preview = json.slice(0, 150).replace(/\s+/g, ' ');
     throw new Error(`Not authenticated — API returned HTML: ${preview}`);
@@ -149,6 +183,9 @@ async function fetchApexData() {
   if (!json || !json.success) {
     throw new Error(`API returned success:false — status ${r.status}, data: ${JSON.stringify(json).slice(0, 200)}`);
   }
+
+  // Fetch account summary for requirements (best-effort, non-blocking)
+  const reqs = await fetchRequirements(client);
 
   const chartData    = json.chart_data       || [];
   const adjData      = json.cash_adjustments || [];
@@ -158,7 +195,7 @@ async function fetchApexData() {
     String(a.TradeDate).localeCompare(String(b.TradeDate))
   );
 
-  // Build adjustment map: key = affected trading date from comment, value = total adj $
+  // Build adjustment map keyed by affected trading date
   const adjMap = {};
   for (const a of adjData) {
     const commentDate = String(a.comment || '').match(/(\d{1,2}[-\/]\d{1,2}[-\/]\d{4})/);
@@ -168,7 +205,7 @@ async function fetchApexData() {
     }
   }
 
-  // Build entries with net P&L (gross + adjustments)
+  // Build entries with net P&L
   const entries = sessions.map(s => {
     const date    = normDate(s.TradeDate);
     if (!date) return null;
@@ -199,14 +236,24 @@ async function fetchApexData() {
   const totalGross  = chartData.reduce((sum, s) => sum + (s.ClosedPnl || 0), 0);
   const totalProfit = `$${(Math.round(totalGross * 100) / 100).toFixed(2)}`;
 
-  // ── Trailing drawdown ─────────────────────────────────────────────────────
+  // ── Trailing drawdown ──────────────────────────────────────────────────────
   const trailingDrawdown = Number(process.env.APEX_TRAILING_DRAWDOWN || 2500);
   const highWatermark    = chartData.reduce((max, s) => Math.max(max, s.AcctBal || 0), 0);
   const drawdownFloor    = Math.round((highWatermark - trailingDrawdown) * 100) / 100;
   const drawdownCushion  = Math.round(((balanceNum || 0) - drawdownFloor) * 100) / 100;
 
-  // ── Latest session (most recent trading day) ──────────────────────────────
+  // ── Latest session ─────────────────────────────────────────────────────────
   const latestEntry = entries.length ? entries[entries.length - 1] : null;
+
+  // ── Payout / eval progress ─────────────────────────────────────────────────
+  const profitTarget      = reqs.profitTarget    || null;
+  const initialBalance    = reqs.initialBalance  || 250000;
+  const minTradingDays    = reqs.minTradingDays  || null;
+  const minProfitDays     = reqs.minProfitDays   || null;
+  const minProfitThresh   = reqs.minProfitThreshold || 150;
+
+  const daysWithFills     = entries.filter(e => e.fills > 0).length;
+  const profitableDays    = entries.filter(e => e.pnl >= minProfitThresh).length;
 
   return {
     accountId  : ACCOUNT_ID,
@@ -225,6 +272,18 @@ async function fetchApexData() {
       floor         : drawdownFloor,
       cushion       : drawdownCushion,
       currentBalance: Math.round((balanceNum || 0) * 100) / 100,
+    },
+    requirements: {
+      profitTarget,
+      initialBalance,
+      minTradingDays,
+      minProfitDays,
+      minProfitThreshold: minProfitThresh,
+    },
+    progress: {
+      currentBalance  : Math.round((balanceNum || 0) * 100) / 100,
+      daysWithFills,
+      profitableDays,
     },
     latestSession: latestEntry,
     lastSync: new Date().toISOString(),
@@ -250,7 +309,7 @@ app.get('/api/data', async (req, res) => {
   }
 });
 
-// Debug: shows raw JSON API response (visits trading page first, same as fetchApexData)
+// Debug: shows raw JSON API response
 app.get('/api/debug', async (req, res) => {
   try {
     const client = makeClient();
@@ -326,7 +385,6 @@ app.get('/api/debug-login', async (req, res) => {
       tfFinalUrl = tfRes.request?.res?.responseUrl || '';
     }
 
-    // Test the JSON API endpoint
     const apiRes = await client.get(DATA_URL, {
       params: { account_number: ACCOUNT_ID },
       headers: {
