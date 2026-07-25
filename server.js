@@ -199,6 +199,15 @@ async function fetchApexData() {
   const totalGross  = chartData.reduce((sum, s) => sum + (s.ClosedPnl || 0), 0);
   const totalProfit = `$${(Math.round(totalGross * 100) / 100).toFixed(2)}`;
 
+  // ── Trailing drawdown ─────────────────────────────────────────────────────
+  const trailingDrawdown = Number(process.env.APEX_TRAILING_DRAWDOWN || 2500);
+  const highWatermark    = chartData.reduce((max, s) => Math.max(max, s.AcctBal || 0), 0);
+  const drawdownFloor    = Math.round((highWatermark - trailingDrawdown) * 100) / 100;
+  const drawdownCushion  = Math.round(((balanceNum || 0) - drawdownFloor) * 100) / 100;
+
+  // ── Latest session (most recent trading day) ──────────────────────────────
+  const latestEntry = entries.length ? entries[entries.length - 1] : null;
+
   return {
     accountId  : ACCOUNT_ID,
     balance,
@@ -210,6 +219,14 @@ async function fetchApexData() {
       amount : Math.round((a.amount || 0) * 100) / 100,
       comment: a.comment,
     })),
+    drawdown: {
+      trailingLimit : trailingDrawdown,
+      highWatermark : Math.round(highWatermark * 100) / 100,
+      floor         : drawdownFloor,
+      cushion       : drawdownCushion,
+      currentBalance: Math.round((balanceNum || 0) * 100) / 100,
+    },
+    latestSession: latestEntry,
     lastSync: new Date().toISOString(),
   };
 }
