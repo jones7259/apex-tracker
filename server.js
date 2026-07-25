@@ -124,19 +124,30 @@ async function fetchApexData() {
   const client = makeClient();
   await login(client);
 
-  // Hit the JSON API endpoint directly — no HTML scraping
+  // Visit the trading page first — the browser always does this before the XHR,
+  // and the server may require it to establish proper session context.
+  const tradingPageUrl = `${BASE}/member/account/trading?account=${ACCOUNT_ID}`;
+  await client.get(tradingPageUrl);
+
+  // Now hit the JSON API endpoint (same XHR the browser's JS makes)
   const r = await client.get(DATA_URL, {
     params: { account_number: ACCOUNT_ID },
     headers: {
-      'Accept'  : 'application/json, text/javascript, */*; q=0.01',
-      'X-Requested-With': 'XMLHttpRequest',
-      'Referer' : `${BASE}/member/account/trading?account=${ACCOUNT_ID}`,
+      'Accept'           : 'application/json, text/javascript, */*; q=0.01',
+      'X-Requested-With' : 'XMLHttpRequest',
+      'Referer'          : tradingPageUrl,
     },
   });
 
   const json = r.data;
-  if (!json || json.success === false) {
-    throw new Error(`API returned success:false — status ${r.status}`);
+
+  // If we got HTML back (not authenticated), throw immediately with context
+  if (typeof json === 'string') {
+    const preview = json.slice(0, 150).replace(/\s+/g, ' ');
+    throw new Error(`Not authenticated — API returned HTML: ${preview}`);
+  }
+  if (!json || !json.success) {
+    throw new Error(`API returned success:false — status ${r.status}, data: ${JSON.stringify(json).slice(0, 200)}`);
   }
 
   const chartData    = json.chart_data       || [];
@@ -222,25 +233,29 @@ app.get('/api/data', async (req, res) => {
   }
 });
 
-// Debug: shows raw JSON API response
+// Debug: shows raw JSON API response (visits trading page first, same as fetchApexData)
 app.get('/api/debug', async (req, res) => {
   try {
     const client = makeClient();
     await login(client);
+    const tradingPageUrl = `${BASE}/member/account/trading?account=${ACCOUNT_ID}`;
+    await client.get(tradingPageUrl);
     const r = await client.get(DATA_URL, {
       params: { account_number: ACCOUNT_ID },
       headers: {
         'Accept'           : 'application/json, text/javascript, */*; q=0.01',
         'X-Requested-With' : 'XMLHttpRequest',
-        'Referer'          : `${BASE}/member/account/trading?account=${ACCOUNT_ID}`,
+        'Referer'          : tradingPageUrl,
       },
     });
+    const isJson = typeof r.data === 'object';
     res.json({
       status        : r.status,
-      success       : r.data?.success,
-      sessionCount  : r.data?.chart_data?.length ?? 0,
-      adjCount      : r.data?.cash_adjustments?.length ?? 0,
-      raw           : r.data,
+      isJson,
+      success       : isJson ? r.data?.success : false,
+      sessionCount  : isJson ? (r.data?.chart_data?.length ?? 0) : 0,
+      adjCount      : isJson ? (r.data?.cash_adjustments?.length ?? 0) : 0,
+      preview       : isJson ? r.data : String(r.data).slice(0, 300),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
