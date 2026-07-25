@@ -107,8 +107,8 @@ async function login(client) {
   const finalUrl = res.request?.res?.responseUrl || res.config?.url || '';
   const html2fa  = typeof res.data === 'string' ? res.data : '';
 
-  // aMember 2FA — TOTP page
-  const is2FA = /two.?factor|totp|2fa|amember_totp/i.test(finalUrl + html2fa);
+  // aMember 2FA — TOTP page (detects "Confirm Your Identity" / "One Time Password")
+  const is2FA = /two.?factor|totp|2fa|amember_totp|confirm.{0,30}identity|one.time.password/i.test(finalUrl + html2fa);
   if (is2FA) {
     if (!process.env.APEX_TOTP_SECRET) throw new Error('2FA_REQUIRED');
     const $tf     = cheerio.load(html2fa);
@@ -330,18 +330,27 @@ app.get('/api/debug-login', async (req, res) => {
     );
     const loginFinalUrl = loginRes.request?.res?.responseUrl || loginRes.config?.url || '';
     const loginText     = extractText(loginRes.data).slice(0, 300);
-    const has2FA        = loginFinalUrl.includes('two-factor') || (typeof loginRes.data === 'string' && loginRes.data.includes('two-factor-challenge'));
+    const loginHtml     = typeof loginRes.data === 'string' ? loginRes.data : '';
+    const has2FA        = /two.?factor|totp|2fa|amember_totp|confirm.{0,30}identity|one.time.password/i.test(loginFinalUrl + loginHtml);
+    const twoFaFields   = has2FA ? extractFormFields(loginHtml) : {};
 
     // Step 3: 2FA if needed
     let totpGenerated = null, tfFinalUrl = null;
     if (has2FA) {
-      if (!process.env.APEX_TOTP_SECRET) { return res.json({ step: '2FA_REQUIRED_BUT_SECRET_NOT_SET', loginFinalUrl, loginText }); }
-      totpGenerated     = totp(process.env.APEX_TOTP_SECRET);
-      const csrf2       = extractCsrf(loginRes.data);
-      const tfRes       = await client.post(
-        TFA_URL,
-        new URLSearchParams({ code: totpGenerated, _token: csrf2 }).toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      if (!process.env.APEX_TOTP_SECRET) { return res.json({ step: '2FA_REQUIRED_BUT_SECRET_NOT_SET', loginFinalUrl, loginText, twoFaFields }); }
+      totpGenerated = totp(process.env.APEX_TOTP_SECRET);
+      const $tf     = cheerio.load(loginHtml);
+      const tfForm  = $tf('form');
+      const tfAction = tfForm.attr('action') || '';
+      const tfUrl   = tfAction.startsWith('http') ? tfAction : `${BASE}${tfAction || '/login'}`;
+      const tfField = $tf('input[type="text"], input[type="number"]')
+                        .filter((_, el) => !['amember_login'].includes($tf(el).attr('name') || ''))
+                        .first().attr('name') || 'amember_totp_code';
+      const tfAttemptId = $tf('input[name="login_attempt_id"]').val() || '';
+      const tfRes = await client.post(
+        tfUrl,
+        new URLSearchParams({ [tfField]: totpGenerated, login_attempt_id: tfAttemptId }).toString(),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': loginFinalUrl } }
       );
       tfFinalUrl = tfRes.request?.res?.responseUrl || '';
     }
@@ -366,6 +375,7 @@ app.get('/api/debug-login', async (req, res) => {
       loginFinalUrl,
       loginText,
       has2FA,
+      twoFaFields,
       totpGenerated,
       tfFinalUrl,
       tradingFinalUrl: trFinalUrl,
