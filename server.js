@@ -62,6 +62,20 @@ function extractCsrf(html) {
       || '';
 }
 
+function extractFormFields(html) {
+  const $ = cheerio.load(html);
+  const fields = {};
+  $('form').each((_, form) => {
+    $(form).find('input, select, textarea').each((_, el) => {
+      const name = $(el).attr('name');
+      const type = $(el).attr('type') || $(el).prop('tagName').toLowerCase();
+      const value = $(el).val() || '';
+      if (name) fields[name] = { type, value: type === 'password' ? '***' : value.slice(0, 50) };
+    });
+  });
+  return fields;
+}
+
 async function getXsrfToken(client, url) {
   // Laravel often sets XSRF-TOKEN as a cookie; value must be URL-decoded for use as header/field
   try {
@@ -290,6 +304,9 @@ app.get('/api/debug-login', async (req, res) => {
     let allCookies = [];
     try { allCookies = (await client.defaults.jar.getCookies(LOGIN_URL)).map(c => c.key); } catch {}
 
+    // Extract actual form field names so we know what to POST
+    const formFields = extractFormFields(lp.data);
+
 
     // Step 2: post credentials
     const loginRes = await client.post(
@@ -330,6 +347,7 @@ app.get('/api/debug-login', async (req, res) => {
       tokenFoundAt   : tokenIdx,
       csrfFoundAt    : csrfIdx,
       cookiesAfterGet: allCookies,
+      formFields,
       loginPageSnippet,
       loginFinalUrl,
       loginText,
