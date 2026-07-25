@@ -276,7 +276,20 @@ app.get('/api/debug-login', async (req, res) => {
     const csrfHtml = extractCsrf(lp.data);
     const csrfCookie = await getXsrfToken(client, LOGIN_URL);
     const csrf    = csrfHtml || csrfCookie;
-    const loginPageSnippet = lp.data.slice(0, 1500); // raw HTML to inspect
+
+    // Find _token / csrf in the full HTML to understand page structure
+    const tokenIdx = lp.data.indexOf('_token');
+    const csrfIdx  = lp.data.toLowerCase().indexOf('csrf');
+    const loginPageSnippet = tokenIdx >= 0
+      ? lp.data.slice(Math.max(0, tokenIdx - 100), tokenIdx + 300)
+      : csrfIdx >= 0
+        ? lp.data.slice(Math.max(0, csrfIdx - 100), csrfIdx + 300)
+        : lp.data.slice(lp.data.indexOf('<body'), lp.data.indexOf('<body') + 2000);
+
+    // Get all cookies set after login page GET
+    let allCookies = [];
+    try { allCookies = (await client.defaults.jar.getCookies(LOGIN_URL)).map(c => c.key); } catch {}
+
 
     // Step 2: post credentials
     const loginRes = await client.post(
@@ -314,6 +327,9 @@ app.get('/api/debug-login', async (req, res) => {
       csrfFromHtml   : csrfHtml ? 'found' : 'missing',
       csrfFromCookie : csrfCookie ? 'found' : 'missing',
       csrfUsed       : csrf ? csrf.slice(0,20)+'...' : 'NONE',
+      tokenFoundAt   : tokenIdx,
+      csrfFoundAt    : csrfIdx,
+      cookiesAfterGet: allCookies,
       loginPageSnippet,
       loginFinalUrl,
       loginText,
