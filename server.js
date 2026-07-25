@@ -62,9 +62,22 @@ function extractCsrf(html) {
       || '';
 }
 
+async function getXsrfToken(client, url) {
+  // Laravel often sets XSRF-TOKEN as a cookie; value must be URL-decoded for use as header/field
+  try {
+    const jar     = client.defaults.jar;
+    const cookies = await jar.getCookies(url);
+    const c       = cookies.find(c => c.key === 'XSRF-TOKEN');
+    return c ? decodeURIComponent(c.value) : '';
+  } catch { return ''; }
+}
+
 async function login(client) {
   const lp   = await client.get(LOGIN_URL);
-  const csrf = extractCsrf(lp.data);
+
+  // Try HTML-embedded token first, then XSRF-TOKEN cookie
+  let csrf = extractCsrf(lp.data);
+  if (!csrf) csrf = await getXsrfToken(client, LOGIN_URL);
 
   const res = await client.post(
     LOGIN_URL,
@@ -73,18 +86,25 @@ async function login(client) {
       password: process.env.APEX_PASSWORD || '',
       _token  : csrf,
     }).toString(),
-    { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': LOGIN_URL } }
+    {
+      headers: {
+        'Content-Type' : 'application/x-www-form-urlencoded',
+        'Referer'      : LOGIN_URL,
+        'X-XSRF-TOKEN' : csrf,
+      },
+    }
   );
 
   const finalUrl = res.request?.res?.responseUrl || res.config?.url || '';
   const html2fa  = typeof res.data === 'string' ? res.data : '';
   if (finalUrl.includes('two-factor') || html2fa.includes('two-factor-challenge')) {
     if (!process.env.APEX_TOTP_SECRET) throw new Error('2FA_REQUIRED');
-    const csrf2 = extractCsrf(html2fa);
+    let csrf2 = extractCsrf(html2fa);
+    if (!csrf2) csrf2 = await getXsrfToken(client, TFA_URL);
     await client.post(
       TFA_URL,
       new URLSearchParams({ code: totp(process.env.APEX_TOTP_SECRET), _token: csrf2 }).toString(),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': LOGIN_URL } }
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': LOGIN_URL, 'X-XSRF-TOKEN': csrf2 } }
     );
   }
 }
@@ -252,8 +272,11 @@ app.get('/api/debug-login', async (req, res) => {
     const client = makeClient();
 
     // Step 1: get login page + CSRF
-    const lp   = await client.get(LOGIN_URL);
-    const csrf = extractCsrf(lp.data);
+    const lp      = await client.get(LOGIN_URL);
+    const csrfHtml = extractCsrf(lp.data);
+    const csrfCookie = await getXsrfToken(client, LOGIN_URL);
+    const csrf    = csrfHtml || csrfCookie;
+    const loginPageSnippet = lp.data.slice(0, 1500); // raw HTML to inspect
 
     // Step 2: post credentials
     const loginRes = await client.post(
@@ -285,10 +308,13 @@ app.get('/api/debug-login', async (req, res) => {
     const trText    = extractText(tr.data).slice(0, 400);
 
     res.json({
-      envEmail      : process.env.APEX_EMAIL    ? process.env.APEX_EMAIL.slice(0,4)+'...' : 'NOT_SET',
-      envPassword   : !!process.env.APEX_PASSWORD,
-      envTotp       : !!process.env.APEX_TOTP_SECRET,
-      csrf          : csrf ? 'found' : 'MISSING',
+      envEmail       : process.env.APEX_EMAIL    ? process.env.APEX_EMAIL.slice(0,4)+'...' : 'NOT_SET',
+      envPassword    : !!process.env.APEX_PASSWORD,
+      envTotp        : !!process.env.APEX_TOTP_SECRET,
+      csrfFromHtml   : csrfHtml ? 'found' : 'missing',
+      csrfFromCookie : csrfCookie ? 'found' : 'missing',
+      csrfUsed       : csrf ? csrf.slice(0,20)+'...' : 'NONE',
+      loginPageSnippet,
       loginFinalUrl,
       loginText,
       has2FA,
