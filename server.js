@@ -239,6 +239,64 @@ app.get('/api/debug', async (req, res) => {
   }
 });
 
+// Step-by-step login debug — shows exactly where auth breaks
+app.get('/api/debug-login', async (req, res) => {
+  try {
+    const client = makeClient();
+
+    // Step 1: get login page + CSRF
+    const lp   = await client.get(LOGIN_URL);
+    const $lp  = cheerio.load(lp.data);
+    const csrf = $lp('input[name="_token"]').val() || $lp('meta[name="csrf-token"]').attr('content') || '';
+
+    // Step 2: post credentials
+    const loginRes = await client.post(
+      LOGIN_URL,
+      new URLSearchParams({ email: process.env.APEX_EMAIL || '', password: process.env.APEX_PASSWORD || '', _token: csrf }).toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': LOGIN_URL } }
+    );
+    const loginFinalUrl = loginRes.request?.res?.responseUrl || loginRes.config?.url || '';
+    const loginText     = extractText(loginRes.data).slice(0, 300);
+    const has2FA        = loginFinalUrl.includes('two-factor') || (typeof loginRes.data === 'string' && loginRes.data.includes('two-factor-challenge'));
+
+    // Step 3: 2FA if needed
+    let totpGenerated = null, tfFinalUrl = null;
+    if (has2FA) {
+      if (!process.env.APEX_TOTP_SECRET) { return res.json({ step: '2FA_REQUIRED_BUT_SECRET_NOT_SET', loginFinalUrl, loginText }); }
+      totpGenerated     = totp(process.env.APEX_TOTP_SECRET);
+      const $tf         = cheerio.load(loginRes.data);
+      const csrf2       = $tf('input[name="_token"]').val() || '';
+      const tfRes       = await client.post(
+        'https://apextraderfunding.com/two-factor-challenge',
+        new URLSearchParams({ code: totpGenerated, _token: csrf2 }).toString(),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      );
+      tfFinalUrl = tfRes.request?.res?.responseUrl || '';
+    }
+
+    // Step 4: try trading page
+    const tr        = await client.get(`${BASE}/member/account/trading?account=${ACCOUNT_ID}`);
+    const trFinalUrl = tr.request?.res?.responseUrl || '';
+    const trText    = extractText(tr.data).slice(0, 400);
+
+    res.json({
+      envEmail      : process.env.APEX_EMAIL    ? process.env.APEX_EMAIL.slice(0,4)+'...' : 'NOT_SET',
+      envPassword   : !!process.env.APEX_PASSWORD,
+      envTotp       : !!process.env.APEX_TOTP_SECRET,
+      csrf          : csrf ? 'found' : 'MISSING',
+      loginFinalUrl,
+      loginText,
+      has2FA,
+      totpGenerated,
+      tfFinalUrl,
+      tradingFinalUrl: trFinalUrl,
+      tradingText   : trText,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/health', (_, res) => res.json({ ok: true, cached: !!cache, cacheAge: cache ? Math.round((Date.now()-cacheTs)/1000) : null }));
 
 const PORT = process.env.PORT || 3000;
