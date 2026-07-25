@@ -207,7 +207,7 @@ async function fetchApexData() {
     entries,
     adjustments: adjData.map(a => ({
       date   : normDate(a.TradeDate),
-      amount : a.amount,
+      amount : Math.round((a.amount || 0) * 100) / 100,
       comment: a.comment,
     })),
     lastSync: new Date().toISOString(),
