@@ -87,38 +87,45 @@ async function getXsrfToken(client, url) {
 }
 
 async function login(client) {
-  const lp   = await client.get(LOGIN_URL);
+  const lp  = await client.get(LOGIN_URL);
+  const $lp = cheerio.load(lp.data);
 
-  // Try HTML-embedded token first, then XSRF-TOKEN cookie
-  let csrf = extractCsrf(lp.data);
-  if (!csrf) csrf = await getXsrfToken(client, LOGIN_URL);
+  // aMember Pro uses amember_login / amember_pass + a login_attempt_id hidden field
+  const loginAttemptId = $lp('input[name="login_attempt_id"]').val() || '';
 
   const res = await client.post(
     LOGIN_URL,
     new URLSearchParams({
-      email   : process.env.APEX_EMAIL    || '',
-      password: process.env.APEX_PASSWORD || '',
-      _token  : csrf,
+      amember_login    : process.env.APEX_EMAIL    || '',
+      amember_pass     : process.env.APEX_PASSWORD || '',
+      login_attempt_id : loginAttemptId,
+      login            : 'Log In',
     }).toString(),
-    {
-      headers: {
-        'Content-Type' : 'application/x-www-form-urlencoded',
-        'Referer'      : LOGIN_URL,
-        'X-XSRF-TOKEN' : csrf,
-      },
-    }
+    { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': LOGIN_URL } }
   );
 
   const finalUrl = res.request?.res?.responseUrl || res.config?.url || '';
   const html2fa  = typeof res.data === 'string' ? res.data : '';
-  if (finalUrl.includes('two-factor') || html2fa.includes('two-factor-challenge')) {
+
+  // aMember 2FA — TOTP page
+  const is2FA = /two.?factor|totp|2fa|amember_totp/i.test(finalUrl + html2fa);
+  if (is2FA) {
     if (!process.env.APEX_TOTP_SECRET) throw new Error('2FA_REQUIRED');
-    let csrf2 = extractCsrf(html2fa);
-    if (!csrf2) csrf2 = await getXsrfToken(client, TFA_URL);
+    const $tf     = cheerio.load(html2fa);
+    const tfForm  = $tf('form');
+    const tfAction = tfForm.attr('action') || '';
+    const tfUrl   = tfAction.startsWith('http') ? tfAction : `${BASE}${tfAction || '/login'}`;
+    const tfField = $tf('input[type="text"], input[type="number"]')
+                      .filter((_, el) => !['amember_login'].includes($tf(el).attr('name') || ''))
+                      .first().attr('name') || 'amember_totp_code';
+    const tfAttemptId = $tf('input[name="login_attempt_id"]').val() || '';
     await client.post(
-      TFA_URL,
-      new URLSearchParams({ code: totp(process.env.APEX_TOTP_SECRET), _token: csrf2 }).toString(),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': LOGIN_URL, 'X-XSRF-TOKEN': csrf2 } }
+      tfUrl,
+      new URLSearchParams({
+        [tfField]        : totp(process.env.APEX_TOTP_SECRET),
+        login_attempt_id : tfAttemptId,
+      }).toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': finalUrl } }
     );
   }
 }
@@ -308,10 +315,17 @@ app.get('/api/debug-login', async (req, res) => {
     const formFields = extractFormFields(lp.data);
 
 
-    // Step 2: post credentials
+    // Step 2: post credentials with correct aMember field names
+    const $lp2 = cheerio.load(lp.data);
+    const loginAttemptId = $lp2('input[name="login_attempt_id"]').val() || '';
     const loginRes = await client.post(
       LOGIN_URL,
-      new URLSearchParams({ email: process.env.APEX_EMAIL || '', password: process.env.APEX_PASSWORD || '', _token: csrf }).toString(),
+      new URLSearchParams({
+        amember_login    : process.env.APEX_EMAIL    || '',
+        amember_pass     : process.env.APEX_PASSWORD || '',
+        login_attempt_id : loginAttemptId,
+        login            : 'Log In',
+      }).toString(),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': LOGIN_URL } }
     );
     const loginFinalUrl = loginRes.request?.res?.responseUrl || loginRes.config?.url || '';
