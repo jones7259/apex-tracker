@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apex Consistency Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #131722; color: #d1d4dc; font-family: -apple-system, 'Segoe UI', sans-serif; min-height: 100vh; padding: 16px; max-width: 600px; margin: 0 auto; }
+  h1 { font-size: 1.2rem; font-weight: 700; color: #fff; }
+  .sub { font-size: .75rem; color: #787b86; margin-top: 2px; }
+
+  .card { margin-top: 14px; background: #1e222d; border-radius: 10px; border: 1px solid #2a2e39; padding: 16px 18px; }
+  .card-title { font-size: .68rem; color: #787b86; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 12px; }
+
+  /* ACCOUNT STRIP */
+  .acct-strip { display: flex; gap: 20px; flex-wrap: wrap; }
+  .acct-item  { display: flex; flex-direction: column; gap: 2px; }
+  .al { font-size: .65rem; color: #787b86; text-transform: uppercase; letter-spacing: .4px; }
+  .av { font-size: .95rem; font-weight: 700; color: #fff; }
+  .badge { font-size: .68rem; padding: 2px 7px; border-radius: 4px; font-weight: 600; }
+  .badge-red   { background: #2b0000; color: #ef5350; border: 1px solid #4a0000; }
+  .badge-green { background: #0d2b1e; color: #26a69a; border: 1px solid #1a4a3a; }
+
+  /* SYNC */
+  .sync-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .sync-info { font-size: .72rem; color: #787b86; }
+  .sync-btn  { font-size: .75rem; background: #2962ff; color: #fff; border: none; border-radius: 5px; padding: 5px 13px; cursor: pointer; font-weight: 600; }
+  .sync-btn:disabled { background: #363a45; color: #787b86; cursor: default; }
+
+  /* STAT GRID */
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .stat-block { display: flex; flex-direction: column; gap: 2px; }
+  .sl { font-size: .65rem; color: #787b86; text-transform: uppercase; letter-spacing: .4px; }
+  .sv { font-size: 1.2rem; font-weight: 700; }
+  .sn { font-size: .68rem; color: #787b86; }
+  .pos { color: #26a69a; }
+  .neg { color: #ef5350; }
+
+  /* METER */
+  .meter-hdr { display: flex; justify-content: space-between; align-items: center; margin: 14px 0 8px; }
+  .meter-lbl { font-size: .68rem; color: #787b86; text-transform: uppercase; letter-spacing: .4px; }
+  .meter-pct { font-size: .95rem; font-weight: 700; }
+  .meter-bg  { background: #2a2e39; border-radius: 4px; height: 9px; position: relative; }
+  .meter-bar { height: 9px; border-radius: 4px; transition: width .4s, background .4s; }
+  .meter-tick { position: absolute; top: -3px; left: 30%; transform: translateX(-50%); width: 2px; height: 15px; background: #fff; }
+  .meter-tick-lbl { position: absolute; top: -18px; left: 30%; transform: translateX(-50%); font-size: .58rem; color: #fff; white-space: nowrap; }
+
+  /* ALERT */
+  .alert { margin-top: 10px; padding: 9px 13px; border-radius: 6px; font-size: .79rem; font-weight: 500; line-height: 1.4; }
+  .alert-green  { background: #0d2b1e; color: #26a69a; border: 1px solid #1a4a3a; }
+  .alert-yellow { background: #2b2200; color: #f0b429; border: 1px solid #4a3800; }
+  .alert-red    { background: #2b0000; color: #ef5350; border: 1px solid #4a0000; }
+
+  /* ADJUSTMENTS */
+  .adj-row { display: flex; justify-content: space-between; font-size: .79rem; padding: 5px 0; border-bottom: 1px solid #1a1e2b; }
+  .adj-row:last-child { border-bottom: none; }
+  .adj-date { color: #787b86; }
+  .adj-amt  { color: #ef5350; font-weight: 600; }
+  .adj-note { color: #787b86; font-size: .7rem; text-align: right; max-width: 60%; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  th { color: #787b86; text-transform: uppercase; font-size: .63rem; letter-spacing: .4px; padding: 6px 8px; text-align: left; border-bottom: 1px solid #2a2e39; }
+  td { padding: 8px 8px; border-bottom: 1px solid #1a1e2b; }
+  tr:last-child td { border-bottom: none; }
+  tr.best { background: rgba(41,98,255,.08); }
+  .tag-best { background: #2962ff22; color: #2962ff; font-size: .6rem; border-radius: 3px; padding: 1px 4px; margin-left: 4px; font-weight: 700; }
+
+  /* LOADING / ERROR */
+  .loading { text-align: center; padding: 30px 0; color: #787b86; font-size: .85rem; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #363a45; border-top-color: #2962ff; border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err-box { background: #2b0000; color: #ef5350; border: 1px solid #4a0000; border-radius: 7px; padding: 12px 14px; font-size: .8rem; margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<h1>⚡ Apex Consistency Tracker</h1>
+<p class="sub">PA Funded Account — 30% Rule Monitor</p>
+
+<!-- ACCOUNT INFO -->
+<div class="card">
+  <div class="sync-row">
+    <span class="sync-info">Last synced: <span id="last-sync">—</span></span>
+    <button class="sync-btn" id="sync-btn" onclick="syncNow()">↻ Refresh</button>
+  </div>
+  <div class="acct-strip">
+    <div class="acct-item"><span class="al">Account</span><span class="av" id="acct-id">—</span></div>
+    <div class="acct-item"><span class="al">Balance</span><span class="av" id="acct-bal">—</span></div>
+    <div class="acct-item"><span class="al">Total Profit</span><span class="av pos" id="acct-profit">—</span></div>
+    <div class="acct-item"><span class="al">Status</span><span class="av" id="acct-status">—</span></div>
+  </div>
+</div>
+
+<!-- CONSISTENCY -->
+<div class="card" id="stats-card" style="display:none;">
+  <div class="card-title">Consistency Rule</div>
+  <div class="stat-grid">
+    <div class="stat-block"><span class="sl">Gross Profits</span><span class="sv pos" id="stat-gross">—</span><span class="sn">winning days</span></div>
+    <div class="stat-block"><span class="sl">Best Day</span><span class="sv" id="stat-best">—</span><span class="sn" id="stat-best-date">—</span></div>
+    <div class="stat-block"><span class="sl">Max Today</span><span class="sv pos" id="stat-max">—</span><span class="sn">before 30%</span></div>
+    <div class="stat-block"><span class="sl">Days Traded</span><span class="sv" id="stat-days">—</span><span class="sn" id="stat-wl">—</span></div>
+    <div class="stat-block"><span class="sl">Net P&L</span><span class="sv" id="stat-net">—</span><span class="sn">all days</span></div>
+    <div class="stat-block"><span class="sl">Still Need</span><span class="sv" id="stat-need">—</span><span class="sn">to pass rule</span></div>
+  </div>
+  <div class="meter-hdr">
+    <span class="meter-lbl">Best Day % of Gross Profits</span>
+    <span class="meter-pct" id="meter-pct">0.0%</span>
+  </div>
+  <div class="meter-bg">
+    <span class="meter-tick-lbl">30%</span>
+    <div class="meter-tick"></div>
+    <div class="meter-bar" id="meter-bar" style="width:0%;background:#26a69a;"></div>
+  </div>
+  <div class="alert alert-green" id="alert-box">Loading…</div>
+</div>
+
+<!-- ADJUSTMENTS -->
+<div class="card" id="adj-card" style="display:none;">
+  <div class="card-title">⚠️ Cash Adjustments (Violations)</div>
+  <div id="adj-list"></div>
+</div>
+
+<!-- DAILY TABLE -->
+<div class="card" id="table-card" style="display:none;">
+  <div class="card-title">Daily Sessions</div>
+  <table>
+    <thead><tr><th>Date</th><th>Net P&L</th><th>% of Gross</th><th>Notes</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<!-- LOADING / ERROR -->
+<div id="loading" class="card loading">
+  <div class="spinner"></div><br>Connecting to Apex…<br><span style="font-size:.7rem;color:#4a4f5e;">First load may take ~30 seconds (server wake-up)</span>
+</div>
+<div id="err-box" class="err-box" style="display:none;"></div>
+
+<script>
+const fmt = v => (v < 0 ? '-$' : '$') + Math.abs(v).toFixed(2);
+
+function calc(entries) {
+  const net   = entries.reduce((s,e) => s + e.pnl, 0);
+  const wins  = entries.filter(e => e.pnl > 0);
+  const gross = wins.reduce((s,e) => s + e.pnl, 0);
+  const best  = wins.length ? wins.reduce((a,b) => b.pnl > a.pnl ? b : a) : null;
+  const pct   = gross > 0 ? (best.pnl / gross) * 100 : 0;
+  const max   = gross > 0 ? (3/7) * gross : 0;
+  const need  = best ? Math.max(0, best.pnl / 0.30 - gross) : 0;
+  return { net, gross, best, pct, max, need, wins, losses: entries.filter(e => e.pnl <= 0) };
+}
+
+function render(data) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('err-box').style.display = 'none';
+
+  // Account strip
+  document.getElementById('acct-id').textContent     = data.accountId  || '—';
+  document.getElementById('acct-bal').textContent     = data.balance    || '—';
+  document.getElementById('acct-profit').textContent  = data.totalProfit || '—';
+  const st = document.getElementById('acct-status');
+  if (data.status) st.innerHTML = `<span class="badge ${data.status==='Ineligible'?'badge-red':'badge-green'}">${data.status}</span>`;
+
+  const ts = data.lastSync ? new Date(data.lastSync).toLocaleString() : '—';
+  document.getElementById('last-sync').textContent = ts;
+
+  const entries = data.entries || [];
+  if (!entries.length) {
+    document.getElementById('stats-card').style.display = 'none';
+    return;
+  }
+  document.getElementById('stats-card').style.display = 'block';
+
+  const s = calc(entries);
+  document.getElementById('stat-gross').textContent = fmt(s.gross);
+  document.getElementById('stat-best').textContent  = fmt(s.best ? s.best.pnl : 0);
+  document.getElementById('stat-best-date').textContent = s.best ? s.best.date : '—';
+  document.getElementById('stat-max').textContent   = fmt(s.max);
+  document.getElementById('stat-days').textContent  = entries.length;
+  document.getElementById('stat-wl').textContent    = `${s.wins.length}W / ${s.losses.length}L`;
+  document.getElementById('stat-net').textContent   = fmt(s.net);
+  document.getElementById('stat-net').className     = 'sv ' + (s.net >= 0 ? 'pos' : 'neg');
+
+  const needEl = document.getElementById('stat-need');
+  if (s.pct <= 30) { needEl.textContent = '✅ OK'; needEl.className = 'sv pos'; }
+  else { needEl.textContent = fmt(s.need); needEl.className = 'sv neg'; }
+
+  const barCol = s.pct > 30 ? '#ef5350' : s.pct > 22 ? '#f0b429' : '#26a69a';
+  document.getElementById('meter-bar').style.cssText = `width:${Math.min(s.pct,100)}%;background:${barCol};`;
+  document.getElementById('meter-pct').textContent   = s.pct.toFixed(1) + '%';
+  document.getElementById('meter-pct').style.color   = barCol;
+
+  const ab = document.getElementById('alert-box');
+  if (s.pct > 30) {
+    ab.className = 'alert alert-red';
+    ab.innerHTML = `⚠️ RULE VIOLATED — best day is ${s.pct.toFixed(1)}% of gross. Need <strong>${fmt(s.need)}</strong> more in profitable days to pass.`;
+  } else if (s.pct > 22) {
+    ab.className = 'alert alert-yellow';
+    ab.innerHTML = `⚠️ Approaching limit (${s.pct.toFixed(1)}%). Max single-day profit: <strong>${fmt(s.max)}</strong>.`;
+  } else {
+    ab.className = 'alert alert-green';
+    ab.innerHTML = `✅ Passing (${s.pct.toFixed(1)}%). Max single-day profit to stay safe: <strong>${fmt(s.max)}</strong>.`;
+  }
+
+  // Adjustments
+  const adjs = data.adjustments || [];
+  const adjCard = document.getElementById('adj-card');
+  if (adjs.length) {
+    adjCard.style.display = 'block';
+    document.getElementById('adj-list').innerHTML = adjs.map(a =>
+      `<div class="adj-row"><span class="adj-date">${a.date}</span><span class="adj-amt">${a.amount}</span><span class="adj-note">${a.comment}</span></div>`
+    ).join('');
+  } else {
+    adjCard.style.display = 'none';
+  }
+
+  // Daily table
+  document.getElementById('table-card').style.display = 'block';
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  [...entries].reverse().forEach(e => {
+    const isBest = s.best && e.date === s.best.date && e.pnl > 0;
+    const pctStr = s.gross > 0 && e.pnl > 0 ? ((e.pnl/s.gross)*100).toFixed(1)+'%' : '—';
+    const tr = document.createElement('tr');
+    if (isBest) tr.className = 'best';
+    tr.innerHTML = `
+      <td>${e.date}${isBest ? '<span class="tag-best">BEST</span>' : ''}</td>
+      <td class="${e.pnl>=0?'pos':'neg'}">${e.pnl>=0?'+':''}${fmt(e.pnl)}</td>
+      <td>${pctStr}</td>
+      <td style="color:#787b86;font-size:.72rem;">${e.notes||'—'}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  if (data.fetchError) {
+    const eb = document.getElementById('err-box');
+    eb.style.display = 'block';
+    eb.textContent = '⚠️ Using cached data — live fetch failed: ' + data.fetchError;
+  }
+}
+
+function showError(msg) {
+  document.getElementById('loading').style.display = 'none';
+  const eb = document.getElementById('err-box');
+  eb.style.display = 'block';
+  eb.innerHTML = '❌ ' + msg;
+}
+
+async function loadData(force = false) {
+  const btn = document.getElementById('sync-btn');
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    const res = await fetch('/api/data' + (force ? '?force=1' : ''));
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Server error ${res.status}`);
+    }
+    const data = await res.json();
+    render(data);
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Refresh';
+  }
+}
+
+function syncNow() { loadData(true); }
+
+// Auto-refresh every 10 minutes
+loadData();
+setInterval(() => loadData(), 10 * 60 * 1000);
+</script>
+</body>
+</html>
