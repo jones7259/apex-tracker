@@ -82,6 +82,13 @@ async function login(client) {
   }
 }
 
+// ── Strip scripts then extract visible text ────────────────────────────────
+function extractText(html) {
+  const $ = cheerio.load(html);
+  $('script, style, noscript, iframe').remove();
+  return ($('body').text() || $.text()).replace(/\s+/g, ' ').trim();
+}
+
 // ── Text-based parsers (robust against table structure changes) ────────────
 
 function parseTradingText(text) {
@@ -147,8 +154,8 @@ async function fetchApexData() {
     client.get(`${BASE}/member/account/summary?account=${ACCOUNT_ID}`),
   ]);
 
-  const tradingText = cheerio.load(tradingRes.data).text();
-  const summaryText = cheerio.load(summaryRes.data).text();
+  const tradingText = extractText(tradingRes.data);
+  const summaryText = extractText(summaryRes.data);
 
   const { sessions, adjustments } = parseTradingText(tradingText);
   const { balance, totalProfit, status } = parseSummaryText(summaryText);
@@ -217,11 +224,15 @@ app.get('/api/debug', async (req, res) => {
     const client = makeClient();
     await login(client);
     const r = await client.get(`${BASE}/member/account/trading?account=${ACCOUNT_ID}`);
-    const text = cheerio.load(r.data).text().replace(/\s+/g, ' ');
+    const text = extractText(r.data);
+    // Find the first date-like pattern so we can show the relevant section
+    const firstDate = text.search(/\d{4}-\d{2}-\d{2}/);
+    const start = Math.max(0, firstDate - 200);
     res.json({
-      textSample: text.slice(0, 4000),
+      textAroundFirstDate: text.slice(start, start + 3000),
       fullLength : text.length,
       htmlLength : r.data.length,
+      firstDateAt: firstDate,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
