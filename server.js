@@ -9,10 +9,10 @@ const path    = require('path');
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 
-const ACCOUNT_ID = process.env.APEX_ACCOUNT_ID || 'PA-APEX-383013-03';
-const BASE       = 'https://dashboard.apextraderfunding.com';
-const LOGIN_URL  = 'https://dashboard.apextraderfunding.com/login';
-const TFA_URL    = 'https://dashboard.apextraderfunding.com/two-factor-challenge';
+const ACCOUNT_ID  = process.env.APEX_ACCOUNT_ID || 'PA-APEX-383013-03';
+const BASE        = 'https://dashboard.apextraderfunding.com';
+const LOGIN_URL   = 'https://dashboard.apextraderfunding.com/login';
+const DATA_URL    = `${BASE}/member/account-details/get-trading-details`;
 
 // ── TOTP (RFC 6238) ────────────────────────────────────────────────────────
 function totp(base32Secret) {
@@ -43,7 +43,7 @@ function makeClient() {
     jar: new CookieJar(),
     withCredentials: true,
     maxRedirects: 10,
-    timeout: 30_000,
+    timeout: 25_000,
     headers: {
       'User-Agent'     : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125.0.0.0 Safari/537.36',
       'Accept'         : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -52,23 +52,14 @@ function makeClient() {
   }));
 }
 
-// ── Login ──────────────────────────────────────────────────────────────────
-function extractCsrf(html) {
-  const $ = cheerio.load(html);
-  return $('input[name="_token"]').val()
-      || $('meta[name="csrf-token"]').attr('content')
-      || (html.match(/"csrfToken"\s*:\s*"([^"]+)"/) || [])[1]
-      || (html.match(/csrf[_-]?token['"]\s*(?:value|content)?['"]\s*:\s*['"]([^'"]+)['"]/) || [])[1]
-      || '';
-}
-
+// ── Helpers ────────────────────────────────────────────────────────────────
 function extractFormFields(html) {
   const $ = cheerio.load(html);
   const fields = {};
   $('form').each((_, form) => {
     $(form).find('input, select, textarea').each((_, el) => {
-      const name = $(el).attr('name');
-      const type = $(el).attr('type') || $(el).prop('tagName').toLowerCase();
+      const name  = $(el).attr('name');
+      const type  = $(el).attr('type') || $(el).prop('tagName').toLowerCase();
       const value = $(el).val() || '';
       if (name) fields[name] = { type, value: type === 'password' ? '***' : value.slice(0, 50) };
     });
@@ -76,21 +67,20 @@ function extractFormFields(html) {
   return fields;
 }
 
-async function getXsrfToken(client, url) {
-  // Laravel often sets XSRF-TOKEN as a cookie; value must be URL-decoded for use as header/field
-  try {
-    const jar     = client.defaults.jar;
-    const cookies = await jar.getCookies(url);
-    const c       = cookies.find(c => c.key === 'XSRF-TOKEN');
-    return c ? decodeURIComponent(c.value) : '';
-  } catch { return ''; }
+// Normalise M/D/YYYY or YYYY-MM-DD → YYYY-MM-DD
+function normDate(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+  return null;
 }
 
+// ── Login (aMember Pro + TOTP 2FA) ─────────────────────────────────────────
 async function login(client) {
   const lp  = await client.get(LOGIN_URL);
   const $lp = cheerio.load(lp.data);
-
-  // aMember Pro uses amember_login / amember_pass + a login_attempt_id hidden field
   const loginAttemptId = $lp('input[name="login_attempt_id"]').val() || '';
 
   const res = await client.post(
@@ -106,24 +96,21 @@ async function login(client) {
 
   const finalUrl = res.request?.res?.responseUrl || res.config?.url || '';
   const html2fa  = typeof res.data === 'string' ? res.data : '';
-
-  // aMember 2FA — TOTP page (detects "Confirm Your Identity" / "One Time Password")
   const is2FA = /two.?factor|totp|2fa|amember_totp|confirm.{0,30}identity|one.time.password/i.test(finalUrl + html2fa);
+
   if (is2FA) {
     if (!process.env.APEX_TOTP_SECRET) throw new Error('2FA_REQUIRED');
     const $tf     = cheerio.load(html2fa);
-    const tfForm  = $tf('form');
-    const tfAction = tfForm.attr('action') || '';
+    const tfAction = $tf('form').attr('action') || '';
     const tfUrl   = tfAction.startsWith('http') ? tfAction : `${BASE}${tfAction || '/login'}`;
-    // Collect all hidden fields, then find the TOTP input
     const hiddenFields = {};
     $tf('input[type="hidden"]').each((_, el) => {
       const n = $tf(el).attr('name'), v = $tf(el).val() || '';
       if (n) hiddenFields[n] = v;
     });
     const tfField = $tf('input[type="text"], input[type="number"]')
-                      .filter((_, el) => !['amember_login','login'].includes($tf(el).attr('name') || ''))
-                      .first().attr('name') || 'pass';
+      .filter((_, el) => !['amember_login','login'].includes($tf(el).attr('name') || ''))
+      .first().attr('name') || 'pass';
     await client.post(
       tfUrl,
       new URLSearchParams({ ...hiddenFields, [tfField]: totp(process.env.APEX_TOTP_SECRET) }).toString(),
@@ -132,120 +119,87 @@ async function login(client) {
   }
 }
 
-// ── Strip scripts then extract visible text ────────────────────────────────
-function extractText(html) {
-  const $ = cheerio.load(html);
-  $('script, style, noscript, iframe').remove();
-  return ($('body').text() || $.text()).replace(/\s+/g, ' ').trim();
-}
-
-// ── Text-based parsers (robust against table structure changes) ────────────
-
-function parseTradingText(text) {
-  const sessions     = [];
-  const adjustments  = [];
-
-  // Session rows look like: 2026-07-24  $254,010.00  $1,490.00  10
-  // We capture: date, balance, closedPnl, fills
-  const sRx = /(\d{4}-\d{2}-\d{2})\s+\$[\d,]+\.?\d*\s+\$([\d,]+\.?\d*)\s+(\d+)/g;
-  let m;
-  while ((m = sRx.exec(text)) !== null) {
-    sessions.push({
-      date : m[1],
-      pnl  : parseFloat(m[2].replace(/,/g, '')),
-      fills: parseInt(m[3], 10),
-    });
-  }
-
-  // Adjustment rows look like: 2026-07-24  -$50.50  Scaling violation on 7-23-2026
-  const aRx = /(\d{4}-\d{2}-\d{2})\s+(-\$[\d,]+\.?\d*)\s+([^\n\r]{5,80})/g;
-  while ((m = aRx.exec(text)) !== null) {
-    const comment = m[3].trim();
-    // Only capture rows that look like adjustments (not session rows re-matched)
-    if (/scaling|violation|adjustment|cash/i.test(comment)) {
-      adjustments.push({ date: m[1], amount: m[2], comment });
-    }
-  }
-
-  return { sessions, adjustments };
-}
-
-function parseSummaryText(text) {
-  // Matches: "Current Balance: $254,010.00"  or  "Current Balance $254,010.00"
-  const balM  = text.match(/Current\s+Balance[:\s]+\$([\d,]+\.?\d*)/i);
-  const profM = text.match(/Total\s+Profit[:\s]+\$([\d,]+\.?\d*)/i);
-  const status = text.includes('Ineligible') ? 'Ineligible'
-               : /\bEligible\b/.test(text)   ? 'Eligible'
-               : 'Unknown';
-  return {
-    balance    : balM  ? '$' + balM[1]  : null,
-    totalProfit: profM ? '$' + profM[1] : null,
-    status,
-  };
-}
-
-// ── Date normaliser ────────────────────────────────────────────────────────
-function normDate(raw) {
-  if (!raw) return null;
-  const s = raw.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if (m) return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
-  return null;
-}
-
 // ── Core fetch ─────────────────────────────────────────────────────────────
 async function fetchApexData() {
   const client = makeClient();
   await login(client);
 
-  const [tradingRes, summaryRes] = await Promise.all([
-    client.get(`${BASE}/member/account/trading?account=${ACCOUNT_ID}`),
-    client.get(`${BASE}/member/account/summary?account=${ACCOUNT_ID}`),
-  ]);
+  // Hit the JSON API endpoint directly — no HTML scraping
+  const r = await client.get(DATA_URL, {
+    params: { account_number: ACCOUNT_ID },
+    headers: {
+      'Accept'  : 'application/json, text/javascript, */*; q=0.01',
+      'X-Requested-With': 'XMLHttpRequest',
+      'Referer' : `${BASE}/member/account/trading?account=${ACCOUNT_ID}`,
+    },
+  });
 
-  const tradingText = extractText(tradingRes.data);
-  const summaryText = extractText(summaryRes.data);
-
-  const { sessions, adjustments } = parseTradingText(tradingText);
-  const { balance, totalProfit, status } = parseSummaryText(summaryText);
-
-  // Build adjustment map keyed by the VIOLATED day (from comment) or the entry date
-  const adjMap = {};
-  for (const a of adjustments) {
-    const dateInComment = a.comment.match(/(\d{1,2}[-\/]\d{1,2}[-\/]\d{4})/);
-    const key = normDate(dateInComment ? dateInComment[1] : a.date);
-    if (key) adjMap[key] = (adjMap[key] || 0) + parseFloat(a.amount.replace(/[\$,]/g, ''));
+  const json = r.data;
+  if (!json || json.success === false) {
+    throw new Error(`API returned success:false — status ${r.status}`);
   }
 
-  const entries = sessions
-    .map(s => {
-      const date = normDate(s.date);
-      if (!date) return null;
-      const adj = adjMap[date] || 0;
-      const net = Math.round((s.pnl + adj) * 100) / 100;
-      return {
-        date,
-        pnl        : net,
-        grossPnl   : s.pnl,
-        adjustment : adj,
-        fills      : s.fills,
-        notes      : adj
-          ? `Gross $${s.pnl.toFixed(2)}, adj ${adj < 0 ? '-' : '+'}$${Math.abs(adj).toFixed(2)}`
-          : `${s.fills} fills`,
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const chartData    = json.chart_data       || [];
+  const adjData      = json.cash_adjustments || [];
+
+  // Sort sessions oldest → newest
+  const sessions = [...chartData].sort((a, b) =>
+    String(a.TradeDate).localeCompare(String(b.TradeDate))
+  );
+
+  // Build adjustment map: key = affected trading date from comment, value = total adj $
+  const adjMap = {};
+  for (const a of adjData) {
+    const commentDate = String(a.comment || '').match(/(\d{1,2}[-\/]\d{1,2}[-\/]\d{4})/);
+    const affectedDate = commentDate ? normDate(commentDate[1]) : normDate(a.TradeDate);
+    if (affectedDate) {
+      adjMap[affectedDate] = Math.round(((adjMap[affectedDate] || 0) + (a.amount || 0)) * 100) / 100;
+    }
+  }
+
+  // Build entries with net P&L (gross + adjustments)
+  const entries = sessions.map(s => {
+    const date    = normDate(s.TradeDate);
+    if (!date) return null;
+    const grossPnl = Math.round((s.ClosedPnl || 0) * 100) / 100;
+    const adj      = adjMap[date] || 0;
+    const net      = Math.round((grossPnl + adj) * 100) / 100;
+    return {
+      date,
+      pnl       : net,
+      grossPnl,
+      adjustment: adj,
+      fills     : s.Fills || 0,
+      notes     : adj !== 0
+        ? `Gross $${grossPnl.toFixed(2)}, adj ${adj < 0 ? '-' : '+'}$${Math.abs(adj).toFixed(2)}`
+        : `${s.Fills || 0} fills`,
+    };
+  }).filter(Boolean);
+
+  // Account balance from most recent session
+  const mostRecent = chartData.reduce((best, s) =>
+    !best || String(s.TradeDate) > String(best.TradeDate) ? s : best, null);
+  const balanceNum = mostRecent?.AcctBal;
+  const balance = balanceNum != null
+    ? '$' + Number(balanceNum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : null;
+
+  // Total gross profit
+  const totalGross  = chartData.reduce((sum, s) => sum + (s.ClosedPnl || 0), 0);
+  const totalProfit = `$${(Math.round(totalGross * 100) / 100).toFixed(2)}`;
 
   return {
     accountId  : ACCOUNT_ID,
     balance,
     totalProfit,
-    status,
+    status     : 'Active',
     entries,
-    adjustments,
-    lastSync   : new Date().toISOString(),
+    adjustments: adjData.map(a => ({
+      date   : normDate(a.TradeDate),
+      amount : a.amount,
+      comment: a.comment,
+    })),
+    lastSync: new Date().toISOString(),
   };
 }
 
@@ -268,56 +222,39 @@ app.get('/api/data', async (req, res) => {
   }
 });
 
-// Debug endpoint: shows raw page text so we can verify parser selectors
+// Debug: shows raw JSON API response
 app.get('/api/debug', async (req, res) => {
   try {
     const client = makeClient();
     await login(client);
-    const r = await client.get(`${BASE}/member/account/trading?account=${ACCOUNT_ID}`);
-    const text = extractText(r.data);
-    // Find the first date-like pattern so we can show the relevant section
-    const firstDate = text.search(/\d{4}-\d{2}-\d{2}/);
-    const start = Math.max(0, firstDate - 200);
+    const r = await client.get(DATA_URL, {
+      params: { account_number: ACCOUNT_ID },
+      headers: {
+        'Accept'           : 'application/json, text/javascript, */*; q=0.01',
+        'X-Requested-With' : 'XMLHttpRequest',
+        'Referer'          : `${BASE}/member/account/trading?account=${ACCOUNT_ID}`,
+      },
+    });
     res.json({
-      textAroundFirstDate: text.slice(start, start + 3000),
-      fullLength : text.length,
-      htmlLength : r.data.length,
-      firstDateAt: firstDate,
+      status        : r.status,
+      success       : r.data?.success,
+      sessionCount  : r.data?.chart_data?.length ?? 0,
+      adjCount      : r.data?.cash_adjustments?.length ?? 0,
+      raw           : r.data,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Step-by-step login debug — shows exactly where auth breaks
+// Step-by-step login debug
 app.get('/api/debug-login', async (req, res) => {
   try {
     const client = makeClient();
 
-    // Step 1: get login page + CSRF
-    const lp      = await client.get(LOGIN_URL);
-    const csrfHtml = extractCsrf(lp.data);
-    const csrfCookie = await getXsrfToken(client, LOGIN_URL);
-    const csrf    = csrfHtml || csrfCookie;
-
-    // Find _token / csrf in the full HTML to understand page structure
-    const tokenIdx = lp.data.indexOf('_token');
-    const csrfIdx  = lp.data.toLowerCase().indexOf('csrf');
-    const loginPageSnippet = tokenIdx >= 0
-      ? lp.data.slice(Math.max(0, tokenIdx - 100), tokenIdx + 300)
-      : csrfIdx >= 0
-        ? lp.data.slice(Math.max(0, csrfIdx - 100), csrfIdx + 300)
-        : lp.data.slice(lp.data.indexOf('<body'), lp.data.indexOf('<body') + 2000);
-
-    // Get all cookies set after login page GET
-    let allCookies = [];
-    try { allCookies = (await client.defaults.jar.getCookies(LOGIN_URL)).map(c => c.key); } catch {}
-
-    // Extract actual form field names so we know what to POST
+    const lp = await client.get(LOGIN_URL);
     const formFields = extractFormFields(lp.data);
 
-
-    // Step 2: post credentials with correct aMember field names
     const $lp2 = cheerio.load(lp.data);
     const loginAttemptId = $lp2('input[name="login_attempt_id"]').val() || '';
     const loginRes = await client.post(
@@ -331,57 +268,55 @@ app.get('/api/debug-login', async (req, res) => {
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': LOGIN_URL } }
     );
     const loginFinalUrl = loginRes.request?.res?.responseUrl || loginRes.config?.url || '';
-    const loginText     = extractText(loginRes.data).slice(0, 300);
-    const loginHtml     = typeof loginRes.data === 'string' ? loginRes.data : '';
-    const has2FA        = /two.?factor|totp|2fa|amember_totp|confirm.{0,30}identity|one.time.password/i.test(loginFinalUrl + loginHtml);
-    const twoFaFields   = has2FA ? extractFormFields(loginHtml) : {};
+    const loginHtml = typeof loginRes.data === 'string' ? loginRes.data : '';
+    const has2FA = /two.?factor|totp|2fa|amember_totp|confirm.{0,30}identity|one.time.password/i.test(loginFinalUrl + loginHtml);
 
-    // Step 3: 2FA if needed
     let totpGenerated = null, tfFinalUrl = null;
     if (has2FA) {
-      if (!process.env.APEX_TOTP_SECRET) { return res.json({ step: '2FA_REQUIRED_BUT_SECRET_NOT_SET', loginFinalUrl, loginText, twoFaFields }); }
+      if (!process.env.APEX_TOTP_SECRET) return res.json({ step: '2FA_REQUIRED', loginFinalUrl });
       totpGenerated = totp(process.env.APEX_TOTP_SECRET);
-      const $tf     = cheerio.load(loginHtml);
-      const tfForm  = $tf('form');
-      const tfAction = tfForm.attr('action') || '';
-      const tfUrl   = tfAction.startsWith('http') ? tfAction : `${BASE}${tfAction || '/login'}`;
+      const $tf    = cheerio.load(loginHtml);
+      const tfAction = $tf('form').attr('action') || '';
+      const tfUrl  = tfAction.startsWith('http') ? tfAction : `${BASE}${tfAction || '/login'}`;
       const tfField = $tf('input[type="text"], input[type="number"]')
-                        .filter((_, el) => !['amember_login'].includes($tf(el).attr('name') || ''))
-                        .first().attr('name') || 'amember_totp_code';
-      const tfAttemptId = $tf('input[name="login_attempt_id"]').val() || '';
+        .filter((_, el) => !['amember_login'].includes($tf(el).attr('name') || ''))
+        .first().attr('name') || 'pass';
+      const hiddenFields = {};
+      $tf('input[type="hidden"]').each((_, el) => {
+        const n = $tf(el).attr('name'), v = $tf(el).val() || '';
+        if (n) hiddenFields[n] = v;
+      });
       const tfRes = await client.post(
         tfUrl,
-        new URLSearchParams({ [tfField]: totpGenerated, login_attempt_id: tfAttemptId }).toString(),
+        new URLSearchParams({ ...hiddenFields, [tfField]: totpGenerated }).toString(),
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': loginFinalUrl } }
       );
       tfFinalUrl = tfRes.request?.res?.responseUrl || '';
     }
 
-    // Step 4: try trading page
-    const tr        = await client.get(`${BASE}/member/account/trading?account=${ACCOUNT_ID}`);
-    const trFinalUrl = tr.request?.res?.responseUrl || '';
-    const trText    = extractText(tr.data).slice(0, 400);
+    // Test the JSON API endpoint
+    const apiRes = await client.get(DATA_URL, {
+      params: { account_number: ACCOUNT_ID },
+      headers: {
+        'Accept'           : 'application/json, text/javascript, */*; q=0.01',
+        'X-Requested-With' : 'XMLHttpRequest',
+        'Referer'          : `${BASE}/member/account/trading?account=${ACCOUNT_ID}`,
+      },
+    });
 
     res.json({
-      envEmail       : process.env.APEX_EMAIL    ? process.env.APEX_EMAIL.slice(0,4)+'...' : 'NOT_SET',
-      envPassword    : !!process.env.APEX_PASSWORD,
-      envTotp        : !!process.env.APEX_TOTP_SECRET,
-      csrfFromHtml   : csrfHtml ? 'found' : 'missing',
-      csrfFromCookie : csrfCookie ? 'found' : 'missing',
-      csrfUsed       : csrf ? csrf.slice(0,20)+'...' : 'NONE',
-      tokenFoundAt   : tokenIdx,
-      csrfFoundAt    : csrfIdx,
-      cookiesAfterGet: allCookies,
+      envEmail    : process.env.APEX_EMAIL     ? process.env.APEX_EMAIL.slice(0,4)+'...' : 'NOT_SET',
+      envPassword : !!process.env.APEX_PASSWORD,
+      envTotp     : !!process.env.APEX_TOTP_SECRET,
       formFields,
-      loginPageSnippet,
       loginFinalUrl,
-      loginText,
       has2FA,
-      twoFaFields,
       totpGenerated,
       tfFinalUrl,
-      tradingFinalUrl: trFinalUrl,
-      tradingText   : trText,
+      apiStatus   : apiRes.status,
+      apiSuccess  : apiRes.data?.success,
+      sessionCount: apiRes.data?.chart_data?.length ?? 0,
+      adjCount    : apiRes.data?.cash_adjustments?.length ?? 0,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
