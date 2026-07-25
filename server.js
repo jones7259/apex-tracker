@@ -11,7 +11,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const ACCOUNT_ID = process.env.APEX_ACCOUNT_ID || 'PA-APEX-383013-03';
 const BASE       = 'https://dashboard.apextraderfunding.com';
-const LOGIN_URL  = 'https://apextraderfunding.com/member/login';
+const LOGIN_URL  = 'https://dashboard.apextraderfunding.com/login';
+const TFA_URL    = 'https://dashboard.apextraderfunding.com/two-factor-challenge';
 
 // ── TOTP (RFC 6238) ────────────────────────────────────────────────────────
 function totp(base32Secret) {
@@ -52,11 +53,18 @@ function makeClient() {
 }
 
 // ── Login ──────────────────────────────────────────────────────────────────
+function extractCsrf(html) {
+  const $ = cheerio.load(html);
+  return $('input[name="_token"]').val()
+      || $('meta[name="csrf-token"]').attr('content')
+      || (html.match(/"csrfToken"\s*:\s*"([^"]+)"/) || [])[1]
+      || (html.match(/csrf[_-]?token['"]\s*(?:value|content)?['"]\s*:\s*['"]([^'"]+)['"]/) || [])[1]
+      || '';
+}
+
 async function login(client) {
   const lp   = await client.get(LOGIN_URL);
-  const $lp  = cheerio.load(lp.data);
-  const csrf = $lp('input[name="_token"]').val() ||
-               $lp('meta[name="csrf-token"]').attr('content') || '';
+  const csrf = extractCsrf(lp.data);
 
   const res = await client.post(
     LOGIN_URL,
@@ -72,12 +80,11 @@ async function login(client) {
   const html2fa  = typeof res.data === 'string' ? res.data : '';
   if (finalUrl.includes('two-factor') || html2fa.includes('two-factor-challenge')) {
     if (!process.env.APEX_TOTP_SECRET) throw new Error('2FA_REQUIRED');
-    const $tf  = cheerio.load(html2fa);
-    const csrf2 = $tf('input[name="_token"]').val() || '';
+    const csrf2 = extractCsrf(html2fa);
     await client.post(
-      'https://apextraderfunding.com/two-factor-challenge',
+      TFA_URL,
       new URLSearchParams({ code: totp(process.env.APEX_TOTP_SECRET), _token: csrf2 }).toString(),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': LOGIN_URL } }
     );
   }
 }
@@ -246,8 +253,7 @@ app.get('/api/debug-login', async (req, res) => {
 
     // Step 1: get login page + CSRF
     const lp   = await client.get(LOGIN_URL);
-    const $lp  = cheerio.load(lp.data);
-    const csrf = $lp('input[name="_token"]').val() || $lp('meta[name="csrf-token"]').attr('content') || '';
+    const csrf = extractCsrf(lp.data);
 
     // Step 2: post credentials
     const loginRes = await client.post(
@@ -264,10 +270,9 @@ app.get('/api/debug-login', async (req, res) => {
     if (has2FA) {
       if (!process.env.APEX_TOTP_SECRET) { return res.json({ step: '2FA_REQUIRED_BUT_SECRET_NOT_SET', loginFinalUrl, loginText }); }
       totpGenerated     = totp(process.env.APEX_TOTP_SECRET);
-      const $tf         = cheerio.load(loginRes.data);
-      const csrf2       = $tf('input[name="_token"]').val() || '';
+      const csrf2       = extractCsrf(loginRes.data);
       const tfRes       = await client.post(
-        'https://apextraderfunding.com/two-factor-challenge',
+        TFA_URL,
         new URLSearchParams({ code: totpGenerated, _token: csrf2 }).toString(),
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
       );
