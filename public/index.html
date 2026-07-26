@@ -24,6 +24,22 @@
     .card { background: #1a1d27; border: 1px solid #2d3148; border-radius: 12px; padding: 18px 20px; }
     .section-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em; color: #64748b; font-weight: 700; margin-bottom: 14px; }
 
+    /* ── Hero alert bar ── */
+    .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .hero { grid-template-columns: 1fr; } }
+    .hero-card { border-radius: 14px; padding: 22px 26px; display: flex; flex-direction: column; gap: 6px; }
+    .hero-card-red   { background: #1c0a0a; border: 2px solid #ef4444; }
+    .hero-card-green { background: #071a0e; border: 2px solid #22c55e; }
+    .hero-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+    .hero-label-red   { color: #f87171; }
+    .hero-label-green { color: #4ade80; }
+    .hero-val { font-size: 3rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
+    .hero-val-red   { color: #ef4444; }
+    .hero-val-green { color: #22c55e; }
+    .hero-sub { font-size: 0.78rem; margin-top: 2px; }
+    .hero-sub-red   { color: #f8717188; }
+    .hero-sub-green { color: #4ade8088; }
+
     /* ── Top account stats ── */
     .top-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
     .stat { }
@@ -177,6 +193,20 @@ function render(data) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   document.getElementById('app').innerHTML = `
+
+    <!-- ── HERO: Cushion + Max Today ── -->
+    <div class="hero">
+      <div class="hero-card hero-card-red">
+        <div class="hero-label hero-label-red">⚠ Drawdown Cushion</div>
+        <div class="hero-val hero-val-red">${fmt$(cushion)}</div>
+        <div class="hero-sub hero-sub-red">Floor ${fmt$(floor)} — lose this and account is breached</div>
+      </div>
+      <div class="hero-card hero-card-green">
+        <div class="hero-label hero-label-green">✓ Max Profit Today</div>
+        <div class="hero-val hero-val-green">${fmt$(maxToday)}</div>
+        <div class="hero-sub hero-sub-green">Before violating the 30% consistency rule</div>
+      </div>
+    </div>
 
     <!-- Account top stats -->
     <div class="card">
