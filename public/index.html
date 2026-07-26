@@ -232,61 +232,82 @@ function render(data) {
       </div>
 
       <!-- Apex payout requirements -->
-      <div class="sub-label sub-label-gap">Apex Payout Requirements <span style="color:#475569;font-weight:400;text-transform:none;letter-spacing:0">— Legacy 250K &nbsp;${allReqsMet?'<span style="color:#22c55e;font-weight:700">ALL MET ✅</span>':'<span style="color:#f59e0b">not yet eligible</span>'}</span></div>
+      <div style="margin-top:20px;padding-top:18px;border-top:1px solid #2d3148">
 
-      <div class="req-list">
-
-        ${profitTarget != null ? `
-        <div class="req-item ${balancePct>=100?'req-done':''}">
-          <div class="bar-header">
-            <span class="bar-label">${balancePct>=100?'✅':'❌'} Min. Payout Balance</span>
-            <span class="bar-pct">${fmt$(currentBalance)} → ${fmt$(profitTarget)}</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+          <div>
+            <div style="font-size:0.9rem;font-weight:700;color:#e2e8f0">Apex Payout Requirements</div>
+            <div style="font-size:0.72rem;color:#475569;margin-top:2px">Legacy 250K</div>
           </div>
-          ${bar(balancePct)}
-          <div class="bar-sub">
-            <span>${balancePct>=100?'Met — eligible to request':fmt$(apexBalanceNeeded)+' more needed'}</span>
-            <span>${(balancePct||0).toFixed(1)}%</span>
-          </div>
-        </div>` : ''}
-
-        ${minTradingDays != null ? `
-        <div class="req-item ${tradingPct>=100?'req-done':''}">
-          <div class="bar-header">
-            <span class="bar-label">${tradingPct>=100?'✅':'❌'} Trading Days with Fills</span>
-            <span class="bar-pct">${daysWithFills} / ${minTradingDays}</span>
-          </div>
-          ${bar(tradingPct)}
-          <div class="bar-sub">
-            <span>${tradingPct>=100?'Met':minTradingDays-daysWithFills+' more days needed'}</span>
-            <span>${(tradingPct||0).toFixed(1)}%</span>
-          </div>
-        </div>` : ''}
-
-        ${minProfitDays != null ? `
-        <div class="req-item ${profitDaysPct>=100?'req-done':''}">
-          <div class="bar-header">
-            <span class="bar-label">${profitDaysPct>=100?'✅':'❌'} Days with ${fmt$(minProfitThreshold)}+ Profit</span>
-            <span class="bar-pct">${profitableDays} / ${minProfitDays}</span>
-          </div>
-          ${bar(profitDaysPct)}
-          <div class="bar-sub">
-            <span>${profitDaysPct>=100?'Met':minProfitDays-profitableDays+' more qualifying days needed'}</span>
-            <span>${(profitDaysPct||0).toFixed(1)}%</span>
-          </div>
-        </div>` : ''}
-
-        <div class="req-item ${rulePass?'req-done':''}">
-          <div class="bar-header">
-            <span class="bar-label">${rulePass?'✅':'❌'} 30% Consistency Rule</span>
-            <span class="bar-pct">${bestPct.toFixed(1)}% <span style="color:#64748b;font-weight:400">/ 30% max</span></span>
-          </div>
-          ${bar(cBarPct, cBarColor)}
-          <div class="bar-sub">
-            <span>${rulePass?'Passing — best day '+fmt$(bestDay):fmt$(stillNeedRule)+' more gross profit needed to pass'}</span>
-            <span>Best: ${fmtD(bestEntry?.date)}</span>
-          </div>
+          ${allReqsMet
+            ? `<span style="background:#14532d33;border:1px solid #22c55e66;color:#22c55e;padding:6px 14px;border-radius:8px;font-size:0.82rem;font-weight:700">✅ Eligible to Request</span>`
+            : `<span style="background:#1c1000;border:1px solid #f59e0b66;color:#f59e0b;padding:6px 14px;border-radius:8px;font-size:0.82rem;font-weight:700">Not Yet Eligible</span>`
+          }
         </div>
 
+        <!-- Primary target number -->
+        ${!allReqsMet ? (() => {
+          if (apexBalanceNeeded > 0)
+            return `<div style="margin-bottom:16px"><span style="font-size:2rem;font-weight:800;color:#6366f1;letter-spacing:-0.02em">${fmt$(apexBalanceNeeded)}</span><span style="font-size:0.8rem;color:#64748b;margin-left:10px">more to hit payout balance of ${fmt$(profitTarget)}</span></div>`;
+          if (!rulePass)
+            return `<div style="margin-bottom:16px"><span style="font-size:2rem;font-weight:800;color:#ef4444;letter-spacing:-0.02em">${fmt$(stillNeedRule)}</span><span style="font-size:0.8rem;color:#64748b;margin-left:10px">more gross profit needed to pass 30% rule</span></div>`;
+          return `<div style="margin-bottom:16px;font-size:0.82rem;color:#f59e0b">Complete remaining trading day requirements below.</div>`;
+        })() : `<div style="margin-bottom:16px;font-size:0.85rem;color:#22c55e;font-weight:600">All requirements are met — you can request a payout now.</div>`}
+
+        <div class="req-list">
+
+          ${profitTarget != null ? `
+          <div class="req-item ${balancePct>=100?'req-done':''}">
+            <div class="bar-header">
+              <span class="bar-label">${balancePct>=100?'✅':'❌'} Min. Payout Balance</span>
+              <span class="bar-pct">${fmt$(currentBalance)} → ${fmt$(profitTarget)}</span>
+            </div>
+            ${bar(balancePct)}
+            <div class="bar-sub">
+              <span>${balancePct>=100?'Met':'Need '+fmt$(apexBalanceNeeded)+' more'}</span>
+              <span>${(balancePct||0).toFixed(1)}%</span>
+            </div>
+          </div>` : ''}
+
+          ${minTradingDays != null ? `
+          <div class="req-item ${tradingPct>=100?'req-done':''}">
+            <div class="bar-header">
+              <span class="bar-label">${tradingPct>=100?'✅':'❌'} Trading Days with Fills</span>
+              <span class="bar-pct">${daysWithFills} / ${minTradingDays}</span>
+            </div>
+            ${bar(tradingPct)}
+            <div class="bar-sub">
+              <span>${tradingPct>=100?'Met':minTradingDays-daysWithFills+' more days needed'}</span>
+              <span>${(tradingPct||0).toFixed(1)}%</span>
+            </div>
+          </div>` : ''}
+
+          ${minProfitDays != null ? `
+          <div class="req-item ${profitDaysPct>=100?'req-done':''}">
+            <div class="bar-header">
+              <span class="bar-label">${profitDaysPct>=100?'✅':'❌'} Days with ${fmt$(minProfitThreshold)}+ Profit</span>
+              <span class="bar-pct">${profitableDays} / ${minProfitDays}</span>
+            </div>
+            ${bar(profitDaysPct)}
+            <div class="bar-sub">
+              <span>${profitDaysPct>=100?'Met':minProfitDays-profitableDays+' more qualifying days needed'}</span>
+              <span>${(profitDaysPct||0).toFixed(1)}%</span>
+            </div>
+          </div>` : ''}
+
+          <div class="req-item ${rulePass?'req-done':''}">
+            <div class="bar-header">
+              <span class="bar-label">${rulePass?'✅':'❌'} 30% Consistency Rule</span>
+              <span class="bar-pct">${bestPct.toFixed(1)}% <span style="color:#64748b;font-weight:400">/ 30% max</span></span>
+            </div>
+            ${bar(cBarPct, cBarColor)}
+            <div class="bar-sub">
+              <span>${rulePass?'Passing — best day '+fmt$(bestDay):fmt$(stillNeedRule)+' more gross profit to pass'}</span>
+              <span>Best: ${fmtD(bestEntry?.date)}</span>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
 
