@@ -237,9 +237,15 @@ async function fetchApexData() {
   const totalProfit = `$${(Math.round(totalGross * 100) / 100).toFixed(2)}`;
 
   // ── Trailing drawdown ──────────────────────────────────────────────────────
-  const trailingDrawdown = Number(process.env.APEX_TRAILING_DRAWDOWN || 2500);
-  const highWatermark    = chartData.reduce((max, s) => Math.max(max, s.AcctBal || 0), 0);
-  const drawdownFloor    = Math.round((highWatermark - trailingDrawdown) * 100) / 100;
+  // APEX_DRAWDOWN_FLOOR: set this manually from Tradovate's "DRAWDOWN AUTO" column.
+  // It only changes when the account hits a new EOD high watermark.
+  // APEX_TRAILING_DRAWDOWN: the fixed trailing limit (e.g. 6500 for $250k PA).
+  const trailingDrawdown = Number(process.env.APEX_TRAILING_DRAWDOWN || 6500);
+  const highWatermarkCalc = chartData.reduce((max, s) => Math.max(max, s.AcctBal || 0), 0);
+  // Use the env-pinned floor if provided (accurate), else estimate from session data
+  const envFloor         = process.env.APEX_DRAWDOWN_FLOOR ? Number(process.env.APEX_DRAWDOWN_FLOOR) : null;
+  const drawdownFloor    = envFloor != null ? envFloor : Math.round((highWatermarkCalc - trailingDrawdown) * 100) / 100;
+  const highWatermark    = envFloor != null ? Math.round((envFloor + trailingDrawdown) * 100) / 100 : highWatermarkCalc;
   const drawdownCushion  = Math.round(((balanceNum || 0) - drawdownFloor) * 100) / 100;
 
   // ── Latest session ─────────────────────────────────────────────────────────
