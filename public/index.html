@@ -42,11 +42,11 @@
 
     /* ── Payout goal card ── */
     .payout-card { }
-    .payout-need-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .payout-need-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
     .payout-need-big { font-size: 2.4rem; font-weight: 800; color: #f59e0b; letter-spacing: -0.02em; line-height: 1; }
     .payout-need-label { font-size: 0.8rem; color: #94a3b8; }
-    .payout-apex-note { font-size: 0.75rem; color: #475569; margin-top: -10px; margin-bottom: 14px; }
-    .payout-apex-note span { color: #64748b; }
+    .sub-label { font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.1em; color: #334155; font-weight: 700; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #1e2235; }
+    .sub-label-gap { margin-top: 18px; }
 
     /* ── Progress bars ── */
     .req-list { display: flex; flex-direction: column; gap: 12px; }
@@ -206,41 +206,45 @@ function render(data) {
     <div class="card payout-card">
       <div class="section-title">🎯 Payout Goal</div>
 
+      <!-- Personal goal -->
+      <div class="sub-label">Your Personal Goal</div>
+
       ${stillNeededPersonal > 0 ? `
       <div class="payout-need-row">
         <div class="payout-need-big">${fmt$(stillNeededPersonal)}</div>
-        <div class="payout-need-label">more net profit needed<br><span style="color:#64748b">to reach your $${PERSONAL_TARGET.toLocaleString()} goal</span></div>
-      </div>
-      <div class="payout-apex-note">
-        Net profit so far: <span>${fmt$(netProfit)}</span> of <span>$${PERSONAL_TARGET.toLocaleString()}</span>
-        ${apexBalanceNeeded != null ? ` · Apex balance target: ${fmt$(apexBalanceNeeded)} more to reach ${fmt$(profitTarget)}` : ''}
+        <div class="payout-need-label">more net profit needed<br><span style="color:#64748b">to reach $${PERSONAL_TARGET.toLocaleString()} personal goal</span></div>
       </div>` : `
-      <div class="all-met">🎉 Personal $${PERSONAL_TARGET.toLocaleString()} profit goal reached! Net profit: ${fmt$(netProfit)}</div>
+      <div class="all-met" style="margin-bottom:12px">🎉 $${PERSONAL_TARGET.toLocaleString()} personal goal reached! Net: ${fmt$(netProfit)}</div>
       `}
 
-      <div class="req-list">
-
+      <div class="req-list" style="margin-bottom:6px">
         <div class="req-item">
           <div class="bar-header">
-            <span class="bar-label">Personal Goal — $${PERSONAL_TARGET.toLocaleString()} net profit</span>
+            <span class="bar-label">Net Profit</span>
             <span class="bar-pct">${fmt$(netProfit)} / $${PERSONAL_TARGET.toLocaleString()}</span>
           </div>
           ${bar(personalPct, personalPct>=100?'#22c55e':'#f59e0b')}
           <div class="bar-sub">
-            <span>${personalPct>=100?'✅ Reached':fmt$(stillNeededPersonal)+' more to go'}</span>
+            <span>${personalPct>=100?'✅ Reached':fmt$(stillNeededPersonal)+' to go'}</span>
             <span>${personalPct.toFixed(1)}%</span>
           </div>
         </div>
+      </div>
+
+      <!-- Apex payout requirements -->
+      <div class="sub-label sub-label-gap">Apex Payout Requirements <span style="color:#475569;font-weight:400;text-transform:none;letter-spacing:0">— Legacy 250K &nbsp;${allReqsMet?'<span style="color:#22c55e;font-weight:700">ALL MET ✅</span>':'<span style="color:#f59e0b">not yet eligible</span>'}</span></div>
+
+      <div class="req-list">
 
         ${profitTarget != null ? `
         <div class="req-item ${balancePct>=100?'req-done':''}">
           <div class="bar-header">
-            <span class="bar-label">Apex Balance Target ${balancePct>=100?'✓':''}</span>
+            <span class="bar-label">${balancePct>=100?'✅':'❌'} Min. Payout Balance</span>
             <span class="bar-pct">${fmt$(currentBalance)} → ${fmt$(profitTarget)}</span>
           </div>
           ${bar(balancePct)}
           <div class="bar-sub">
-            <span>${balancePct>=100?'✅ Reached':fmt$(apexBalanceNeeded)+' more'}</span>
+            <span>${balancePct>=100?'Met — eligible to request':fmt$(apexBalanceNeeded)+' more needed'}</span>
             <span>${(balancePct||0).toFixed(1)}%</span>
           </div>
         </div>` : ''}
@@ -248,12 +252,12 @@ function render(data) {
         ${minTradingDays != null ? `
         <div class="req-item ${tradingPct>=100?'req-done':''}">
           <div class="bar-header">
-            <span class="bar-label">Trading Days ${tradingPct>=100?'✓':''}</span>
+            <span class="bar-label">${tradingPct>=100?'✅':'❌'} Trading Days with Fills</span>
             <span class="bar-pct">${daysWithFills} / ${minTradingDays}</span>
           </div>
           ${bar(tradingPct)}
           <div class="bar-sub">
-            <span>${tradingPct>=100?'✅ Met':minTradingDays-daysWithFills+' more days needed'}</span>
+            <span>${tradingPct>=100?'Met':minTradingDays-daysWithFills+' more days needed'}</span>
             <span>${(tradingPct||0).toFixed(1)}%</span>
           </div>
         </div>` : ''}
@@ -261,24 +265,24 @@ function render(data) {
         ${minProfitDays != null ? `
         <div class="req-item ${profitDaysPct>=100?'req-done':''}">
           <div class="bar-header">
-            <span class="bar-label">Profitable Days ≥${fmt$(minProfitThreshold)} ${profitDaysPct>=100?'✓':''}</span>
+            <span class="bar-label">${profitDaysPct>=100?'✅':'❌'} Days with ${fmt$(minProfitThreshold)}+ Profit</span>
             <span class="bar-pct">${profitableDays} / ${minProfitDays}</span>
           </div>
           ${bar(profitDaysPct)}
           <div class="bar-sub">
-            <span>${profitDaysPct>=100?'✅ Met':minProfitDays-profitableDays+' more days needed'}</span>
+            <span>${profitDaysPct>=100?'Met':minProfitDays-profitableDays+' more qualifying days needed'}</span>
             <span>${(profitDaysPct||0).toFixed(1)}%</span>
           </div>
         </div>` : ''}
 
         <div class="req-item ${rulePass?'req-done':''}">
           <div class="bar-header">
-            <span class="bar-label">30% Consistency Rule ${rulePass?'✓':''}</span>
+            <span class="bar-label">${rulePass?'✅':'❌'} 30% Consistency Rule</span>
             <span class="bar-pct">${bestPct.toFixed(1)}% <span style="color:#64748b;font-weight:400">/ 30% max</span></span>
           </div>
           ${bar(cBarPct, cBarColor)}
           <div class="bar-sub">
-            <span>${rulePass?'✅ Passing — best day '+fmt$(bestDay):fmt$(stillNeedRule)+' more gross profit to pass'}</span>
+            <span>${rulePass?'Passing — best day '+fmt$(bestDay):fmt$(stillNeedRule)+' more gross profit needed to pass'}</span>
             <span>Best: ${fmtD(bestEntry?.date)}</span>
           </div>
         </div>
