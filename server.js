@@ -252,11 +252,12 @@ async function fetchApexData() {
   const latestEntry = entries.length ? entries[entries.length - 1] : null;
 
   // ── Payout / eval progress ─────────────────────────────────────────────────
-  const profitTarget      = reqs.profitTarget    || null;
-  const initialBalance    = reqs.initialBalance  || 250000;
-  const minTradingDays    = reqs.minTradingDays  || null;
-  const minProfitDays     = reqs.minProfitDays   || null;
-  const minProfitThresh   = reqs.minProfitThreshold || 150;
+  // Fallbacks: known Legacy 250K values. Override via env vars if Apex changes them.
+  const profitTarget      = reqs.profitTarget       || Number(process.env.APEX_PROFIT_TARGET    || 256600);
+  const initialBalance    = reqs.initialBalance     || Number(process.env.APEX_INITIAL_BALANCE  || 250000);
+  const minTradingDays    = reqs.minTradingDays      || Number(process.env.APEX_MIN_TRADING_DAYS || 8);
+  const minProfitDays     = reqs.minProfitDays       || Number(process.env.APEX_MIN_PROFIT_DAYS  || 5);
+  const minProfitThresh   = reqs.minProfitThreshold  || Number(process.env.APEX_MIN_PROFIT_THRESH|| 150);
 
   const daysWithFills     = entries.filter(e => e.fills > 0).length;
   const profitableDays    = entries.filter(e => e.pnl >= minProfitThresh).length;
