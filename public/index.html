@@ -8,108 +8,102 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
 
-    header { background: #1a1d27; border-bottom: 1px solid #2d3148; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-    header h1 { font-size: 1.1rem; font-weight: 700; color: #fff; }
+    header { background: #1a1d27; border-bottom: 1px solid #2d3148; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    header h1 { font-size: 1.05rem; font-weight: 700; color: #fff; }
     header h1 span { color: #6366f1; }
-    .subtitle { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
-    .sync-bar { display: flex; align-items: center; gap: 10px; font-size: 0.78rem; color: #64748b; }
+    .subtitle { font-size: 0.75rem; color: #475569; margin-top: 2px; }
+    .sync-bar { display: flex; align-items: center; gap: 10px; font-size: 0.78rem; color: #64748b; white-space: nowrap; }
     #sync-time { color: #94a3b8; }
     #refresh { background: #6366f1; color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 0.8rem; cursor: pointer; font-weight: 600; }
     #refresh:hover { background: #4f46e5; }
     #refresh:disabled { background: #374151; cursor: not-allowed; }
 
-    main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; display: flex; flex-direction: column; gap: 12px; }
+    main { max-width: 900px; margin: 0 auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 10px; }
 
-    /* ── Shared card ── */
+    /* ── Cards ── */
     .card { background: #1a1d27; border: 1px solid #2d3148; border-radius: 12px; padding: 18px 20px; }
-    .section-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em; color: #64748b; font-weight: 700; margin-bottom: 14px; }
+    .section-title { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: #475569; font-weight: 700; margin-bottom: 12px; }
 
-    /* ── Hero alert bar ── */
-    .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    @media (max-width: 600px) { .hero { grid-template-columns: 1fr; } }
-    .hero-card { border-radius: 14px; padding: 22px 26px; display: flex; flex-direction: column; gap: 6px; }
+    /* ── Hero row: 2 big alert cards ── */
+    .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 580px) { .hero { grid-template-columns: 1fr; } }
+    .hero-card { border-radius: 12px; padding: 20px 24px; display: flex; flex-direction: column; gap: 5px; }
     .hero-card-red   { background: #1c0a0a; border: 2px solid #ef4444; }
     .hero-card-green { background: #071a0e; border: 2px solid #22c55e; }
-    .hero-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+    .hero-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
     .hero-label-red   { color: #f87171; }
     .hero-label-green { color: #4ade80; }
-    .hero-val { font-size: 3rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
+    .hero-val { font-size: 2.8rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
     .hero-val-red   { color: #ef4444; }
     .hero-val-green { color: #22c55e; }
-    .hero-sub { font-size: 0.78rem; margin-top: 2px; }
-    .hero-sub-red   { color: #f8717188; }
-    .hero-sub-green { color: #4ade8088; }
+    .hero-sub { font-size: 0.75rem; margin-top: 2px; }
+    .hero-sub-red   { color: #f8717175; }
+    .hero-sub-green { color: #4ade8075; }
 
-    /* ── Top account stats ── */
-    .top-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-    .stat { }
-    .stat-label { font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.07em; color: #64748b; font-weight: 600; margin-bottom: 5px; }
-    .stat-val   { font-size: 1.5rem; font-weight: 700; color: #f8fafc; line-height: 1.2; }
-    .stat-sub   { font-size: 0.72rem; color: #64748b; margin-top: 3px; }
-    .green { color: #22c55e; }
-    .yellow{ color: #f59e0b; }
-    .red   { color: #ef4444; }
-
-    /* ── Two-column layout ── */
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
-
-    /* ── Stat grid inside cards ── */
-    .stat-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
-    .stat-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-    @media (max-width: 500px) { .stat-grid-3, .stat-grid-4 { grid-template-columns: repeat(2, 1fr); } }
-    .mini-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em; color: #64748b; font-weight: 600; margin-bottom: 4px; }
-    .mini-val   { font-size: 1.15rem; font-weight: 700; color: #f8fafc; }
-    .mini-sub   { font-size: 0.68rem; color: #64748b; margin-top: 2px; }
+    /* ── Payout goal card ── */
+    .payout-card { }
+    .payout-need-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .payout-need-big { font-size: 2.4rem; font-weight: 800; color: #f59e0b; letter-spacing: -0.02em; line-height: 1; }
+    .payout-need-label { font-size: 0.8rem; color: #94a3b8; }
+    .payout-apex-note { font-size: 0.75rem; color: #475569; margin-top: -10px; margin-bottom: 14px; }
+    .payout-apex-note span { color: #64748b; }
 
     /* ── Progress bars ── */
-    .bar-row { margin-bottom: 10px; }
-    .bar-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; font-size: 0.78rem; }
+    .req-list { display: flex; flex-direction: column; gap: 12px; }
+    .req-item { }
+    .req-done .bar-label { color: #334155; }
+    .bar-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; font-size: 0.78rem; }
     .bar-label { color: #94a3b8; font-weight: 500; }
-    .bar-pct   { font-weight: 700; color: #f8fafc; }
-    .bar-bg    { background: #0f1117; border-radius: 6px; height: 9px; overflow: hidden; }
+    .bar-pct   { font-weight: 700; color: #f8fafc; font-size: 0.8rem; }
+    .bar-bg    { background: #0f1117; border-radius: 6px; height: 8px; overflow: hidden; }
     .bar-fill  { height: 100%; border-radius: 6px; transition: width 0.4s; }
-    .bar-sub   { display: flex; justify-content: space-between; font-size: 0.7rem; color: #475569; margin-top: 3px; }
+    .bar-sub   { display: flex; justify-content: space-between; font-size: 0.68rem; color: #475569; margin-top: 3px; }
 
-    /* ── Pill messages ── */
-    .pill { font-size: 0.8rem; padding: 10px 14px; border-radius: 8px; margin-top: 4px; }
+    /* ── Account strip ── */
+    .acct-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+    .acct-item { }
+    .acct-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.07em; color: #475569; font-weight: 600; margin-bottom: 4px; }
+    .acct-val   { font-size: 1.35rem; font-weight: 700; color: #f8fafc; line-height: 1.2; }
+    .acct-sub   { font-size: 0.68rem; color: #475569; margin-top: 2px; }
+    .green { color: #22c55e; } .red { color: #ef4444; } .yellow { color: #f59e0b; }
+
+    /* ── Today's session ── */
+    .session-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; }
+    .sess-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.07em; color: #475569; font-weight: 600; margin-bottom: 4px; }
+    .sess-val   { font-size: 1.25rem; font-weight: 700; color: #f8fafc; }
+    .badge { font-size: 0.6rem; background: #6366f133; color: #818cf8; border: 1px solid #6366f155; border-radius: 20px; padding: 2px 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; vertical-align: middle; margin-left: 8px; }
+
+    /* ── Pill ── */
+    .pill { font-size: 0.78rem; padding: 8px 12px; border-radius: 8px; margin-top: 12px; }
     .pill-pass   { background: #14532d22; border: 1px solid #16a34a55; color: #4ade80; }
     .pill-warn   { background: #78350f22; border: 1px solid #d9770055; color: #fbbf24; }
     .pill-danger { background: #450a0a22; border: 1px solid #ef444455; color: #f87171; }
 
-    /* ── Payout progress requirements ── */
-    .req-list { display: flex; flex-direction: column; gap: 14px; }
-    .req-item { }
-    .req-done .bar-label { text-decoration: line-through; opacity: 0.6; }
-
-    /* ── Latest session ── */
-    .latest-label { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
-    .badge { font-size: 0.62rem; background: #6366f133; color: #818cf8; border: 1px solid #6366f155; border-radius: 20px; padding: 2px 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
-
     /* ── Adjustments ── */
     .adj-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid #1e2235; gap: 12px; }
     .adj-row:last-child { border-bottom: none; }
-    .adj-date    { font-size: 0.8rem; color: #94a3b8; min-width: 90px; }
-    .adj-comment { font-size: 0.8rem; color: #64748b; flex: 1; }
-    .adj-amount  { font-size: 0.9rem; font-weight: 700; color: #ef4444; white-space: nowrap; }
+    .adj-date    { font-size: 0.78rem; color: #64748b; min-width: 90px; }
+    .adj-comment { font-size: 0.78rem; color: #475569; flex: 1; }
+    .adj-amount  { font-size: 0.88rem; font-weight: 700; color: #ef4444; white-space: nowrap; }
 
     /* ── Sessions table ── */
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
-    th { padding: 9px 20px; text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: #475569; font-weight: 600; background: #141620; border-bottom: 1px solid #2d3148; }
-    td { padding: 11px 20px; font-size: 0.85rem; border-bottom: 1px solid #1e2235; }
+    th { padding: 8px 16px; text-align: left; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.07em; color: #475569; font-weight: 600; background: #141620; border-bottom: 1px solid #2d3148; }
+    td { padding: 10px 16px; font-size: 0.85rem; border-bottom: 1px solid #1e2235; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #1e2235; }
     .pnl-pos  { color: #22c55e; font-weight: 600; }
     .pnl-neg  { color: #ef4444; font-weight: 600; }
     .pnl-zero { color: #64748b; }
-    .tag { font-size: 0.6rem; border-radius: 4px; padding: 1px 6px; margin-left: 5px; font-weight: 700; vertical-align: middle; }
+    .tag { font-size: 0.58rem; border-radius: 4px; padding: 1px 5px; margin-left: 5px; font-weight: 700; vertical-align: middle; }
     .tag-best   { background: #fbbf2422; color: #fbbf24; border: 1px solid #fbbf2455; }
     .tag-latest { background: #6366f122; color: #818cf8; border: 1px solid #6366f155; }
 
     .loading { text-align: center; padding: 60px 20px; color: #64748b; }
     .loading small { display: block; margin-top: 8px; font-size: 0.75rem; color: #374151; }
     .error-msg { background: #450a0a22; border: 1px solid #ef444455; color: #f87171; padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; }
+    .all-met { background: #14532d22; border: 1px solid #16a34a55; color: #4ade80; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -117,10 +111,10 @@
 <header>
   <div>
     <h1>⚡ Apex <span>Tracker</span></h1>
-    <div class="subtitle">PA Funded Account — 30% Consistency Monitor</div>
+    <div class="subtitle">PA Funded Account — Consistency Monitor</div>
   </div>
   <div class="sync-bar">
-    <span>Last synced: <span id="sync-time">—</span></span>
+    <span>Synced: <span id="sync-time">—</span></span>
     <button id="refresh">↻ Refresh</button>
   </div>
 </header>
@@ -130,6 +124,8 @@
 </main>
 
 <script>
+const PERSONAL_TARGET = 15000; // your personal profit goal
+
 const fmt$  = n => n == null ? '—' : '$' + Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtD  = s => s ? new Date(s+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) : '—';
 const today = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
@@ -137,7 +133,7 @@ const isWeekend = () => { const d=new Date().getDay(); return d===0||d===6; };
 
 function bar(pct, color) {
   const c = color || (pct >= 100 ? '#22c55e' : pct >= 60 ? '#6366f1' : pct >= 30 ? '#f59e0b' : '#ef4444');
-  return `<div class="bar-bg"><div class="bar-fill" style="width:${Math.min(pct,100)}%;background:${c}"></div></div>`;
+  return `<div class="bar-bg"><div class="bar-fill" style="width:${Math.min(pct||0,100)}%;background:${c}"></div></div>`;
 }
 
 function render(data) {
@@ -149,44 +145,42 @@ function render(data) {
   } = data;
 
   // ── Consistency ────────────────────────────────────────────────────────────
-  const netEntries  = entries.filter(e => e.pnl > 0);
-  const grossProfit = netEntries.reduce((s,e) => s+e.pnl, 0);
+  const winEntries  = entries.filter(e => e.pnl > 0);
+  const grossProfit = winEntries.reduce((s,e) => s+e.pnl, 0);
   const bestEntry   = entries.reduce((b,e) => (!b||e.pnl>b.pnl?e:b), null);
   const bestDay     = bestEntry?.pnl || 0;
   const bestPct     = grossProfit>0 ? (bestDay/grossProfit)*100 : 0;
-  const stillNeed   = grossProfit>0 && bestPct>30 ? Math.ceil((bestDay/0.30)-grossProfit) : 0;
+  const stillNeedRule = grossProfit>0 && bestPct>30 ? Math.ceil((bestDay/0.30)-grossProfit) : 0;
   const maxToday    = grossProfit>0 ? Math.round((grossProfit*0.30/0.70)*100)/100 : 0;
   const wins        = entries.filter(e=>e.pnl>0).length;
   const losses      = entries.filter(e=>e.pnl<0).length;
   const rulePass    = bestPct<=30;
   const cBarPct     = Math.min(bestPct,100);
   const cBarColor   = rulePass ? '#22c55e' : (bestPct<50?'#f59e0b':'#ef4444');
-  const cPillClass  = rulePass ? 'pill-pass' : (bestPct<50?'pill-warn':'pill-danger');
-  const cMsg        = rulePass
-    ? `✅ RULE PASSING — best day is ${bestPct.toFixed(1)}% of gross`
-    : `⚠️ RULE VIOLATED — best day is ${bestPct.toFixed(1)}% of gross. Need ${fmt$(stillNeed)} more in profitable days.`;
 
   // ── Drawdown ───────────────────────────────────────────────────────────────
-  const { trailingLimit=2500, highWatermark=0, floor=0, cushion=0, currentBalance=0 } = drawdown;
+  const { trailingLimit=6500, highWatermark=0, floor=0, cushion=0, currentBalance=0 } = drawdown;
   const ddPct = trailingLimit>0 ? Math.min((cushion/trailingLimit)*100,100) : 100;
   const ddColor = ddPct>50?'#22c55e':(ddPct>20?'#f59e0b':'#ef4444');
-  const ddClass = ddPct>50?'pill-pass':(ddPct>20?'pill-warn':'pill-danger');
 
   // ── Payout progress ────────────────────────────────────────────────────────
   const { profitTarget, initialBalance=250000, minTradingDays, minProfitDays, minProfitThreshold=150 } = requirements;
   const { daysWithFills=0, profitableDays=0 } = progress;
 
-  const balanceNeeded = profitTarget ? Math.max(0, profitTarget - currentBalance) : null;
-  const balancePct    = profitTarget ? Math.min(((currentBalance-initialBalance)/(profitTarget-initialBalance))*100, 100) : null;
-  const tradingPct    = minTradingDays ? Math.min((daysWithFills/minTradingDays)*100, 100) : null;
-  const profitDaysPct = minProfitDays  ? Math.min((profitableDays/minProfitDays)*100, 100)  : null;
+  const netProfit          = currentBalance - initialBalance;
+  const apexBalanceNeeded  = profitTarget ? Math.max(0, profitTarget - currentBalance) : null;
+  const balancePct         = profitTarget ? Math.min(((currentBalance-initialBalance)/(profitTarget-initialBalance))*100, 100) : null;
+  const tradingPct         = minTradingDays ? Math.min((daysWithFills/minTradingDays)*100, 100) : null;
+  const profitDaysPct      = minProfitDays  ? Math.min((profitableDays/minProfitDays)*100, 100)  : null;
+  const stillNeededPersonal= Math.max(0, PERSONAL_TARGET - netProfit);
+  const personalPct        = Math.min((netProfit/PERSONAL_TARGET)*100, 100);
 
   const allReqsMet = rulePass &&
     (balancePct  == null || balancePct  >= 100) &&
     (tradingPct  == null || tradingPct  >= 100) &&
     (profitDaysPct == null || profitDaysPct >= 100);
 
-  // ── Latest session label ───────────────────────────────────────────────────
+  // ── Latest session ─────────────────────────────────────────────────────────
   const ls = latestSession;
   const lsIsToday = ls?.date === today();
   const lsLabel = lsIsToday ? 'Today' : (isWeekend() ? `Most Recent (${fmtD(ls?.date)})` : `Latest Session (${fmtD(ls?.date)})`);
@@ -199,57 +193,54 @@ function render(data) {
       <div class="hero-card hero-card-red">
         <div class="hero-label hero-label-red">⚠ Drawdown Cushion</div>
         <div class="hero-val hero-val-red">${fmt$(cushion)}</div>
-        <div class="hero-sub hero-sub-red">Floor ${fmt$(floor)} — lose this and account is breached</div>
+        <div class="hero-sub hero-sub-red">Floor ${fmt$(floor)} · ${ddPct.toFixed(0)}% of ${fmt$(trailingLimit)} limit</div>
       </div>
       <div class="hero-card hero-card-green">
         <div class="hero-label hero-label-green">✓ Max Profit Today</div>
         <div class="hero-val hero-val-green">${fmt$(maxToday)}</div>
-        <div class="hero-sub hero-sub-green">Before violating the 30% consistency rule</div>
+        <div class="hero-sub hero-sub-green">Before 30% consistency rule breach</div>
       </div>
     </div>
 
-    <!-- Account top stats -->
-    <div class="card">
-      <div class="top-grid">
-        <div class="stat">
-          <div class="stat-label">Account</div>
-          <div class="stat-val" style="font-size:0.95rem;word-break:break-all">${accountId||'—'}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Balance</div>
-          <div class="stat-val">${balance||'—'}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Net Profit</div>
-          <div class="stat-val ${currentBalance>initialBalance?'green':'red'}">${fmt$(currentBalance-initialBalance)}</div>
-          <div class="stat-sub">vs. ${fmt$(initialBalance)} start</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Days Traded</div>
-          <div class="stat-val">${entries.length}</div>
-          <div class="stat-sub">${wins}W / ${losses}L</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Status</div>
-          <div class="stat-val ${status==='Active'?'green':'red'}">${status||'—'}</div>
-        </div>
-      </div>
-    </div>
+    <!-- ── PAYOUT GOAL ── -->
+    <div class="card payout-card">
+      <div class="section-title">🎯 Payout Goal</div>
 
-    <!-- Payout / Eval Progress -->
-    <div class="card">
-      <div class="section-title">📈 Payout / Eval Progress ${allReqsMet?'<span style="color:#22c55e">✅ ALL MET</span>':''}</div>
+      ${stillNeededPersonal > 0 ? `
+      <div class="payout-need-row">
+        <div class="payout-need-big">${fmt$(stillNeededPersonal)}</div>
+        <div class="payout-need-label">more net profit needed<br><span style="color:#64748b">to reach your $${PERSONAL_TARGET.toLocaleString()} goal</span></div>
+      </div>
+      <div class="payout-apex-note">
+        Net profit so far: <span>${fmt$(netProfit)}</span> of <span>$${PERSONAL_TARGET.toLocaleString()}</span>
+        ${apexBalanceNeeded != null ? ` · Apex balance target: ${fmt$(apexBalanceNeeded)} more to reach ${fmt$(profitTarget)}` : ''}
+      </div>` : `
+      <div class="all-met">🎉 Personal $${PERSONAL_TARGET.toLocaleString()} profit goal reached! Net profit: ${fmt$(netProfit)}</div>
+      `}
+
       <div class="req-list">
+
+        <div class="req-item">
+          <div class="bar-header">
+            <span class="bar-label">Personal Goal — $${PERSONAL_TARGET.toLocaleString()} net profit</span>
+            <span class="bar-pct">${fmt$(netProfit)} / $${PERSONAL_TARGET.toLocaleString()}</span>
+          </div>
+          ${bar(personalPct, personalPct>=100?'#22c55e':'#f59e0b')}
+          <div class="bar-sub">
+            <span>${personalPct>=100?'✅ Reached':fmt$(stillNeededPersonal)+' more to go'}</span>
+            <span>${personalPct.toFixed(1)}%</span>
+          </div>
+        </div>
 
         ${profitTarget != null ? `
         <div class="req-item ${balancePct>=100?'req-done':''}">
           <div class="bar-header">
-            <span class="bar-label">Balance Target ${balancePct>=100?'✓':''}</span>
-            <span class="bar-pct">${fmt$(currentBalance)} <span style="color:#64748b;font-weight:400">→</span> ${fmt$(profitTarget)}</span>
+            <span class="bar-label">Apex Balance Target ${balancePct>=100?'✓':''}</span>
+            <span class="bar-pct">${fmt$(currentBalance)} → ${fmt$(profitTarget)}</span>
           </div>
           ${bar(balancePct)}
           <div class="bar-sub">
-            <span>${balancePct>=100 ? '✅ Reached' : `Need ${fmt$(balanceNeeded)} more`}</span>
+            <span>${balancePct>=100?'✅ Reached':fmt$(apexBalanceNeeded)+' more'}</span>
             <span>${(balancePct||0).toFixed(1)}%</span>
           </div>
         </div>` : ''}
@@ -257,12 +248,12 @@ function render(data) {
         ${minTradingDays != null ? `
         <div class="req-item ${tradingPct>=100?'req-done':''}">
           <div class="bar-header">
-            <span class="bar-label">Minimum Trading Days ${tradingPct>=100?'✓':''}</span>
-            <span class="bar-pct">${daysWithFills} / ${minTradingDays} days</span>
+            <span class="bar-label">Trading Days ${tradingPct>=100?'✓':''}</span>
+            <span class="bar-pct">${daysWithFills} / ${minTradingDays}</span>
           </div>
           ${bar(tradingPct)}
           <div class="bar-sub">
-            <span>${tradingPct>=100 ? '✅ Met' : `Need ${minTradingDays-daysWithFills} more days with fills`}</span>
+            <span>${tradingPct>=100?'✅ Met':minTradingDays-daysWithFills+' more days needed'}</span>
             <span>${(tradingPct||0).toFixed(1)}%</span>
           </div>
         </div>` : ''}
@@ -270,140 +261,87 @@ function render(data) {
         ${minProfitDays != null ? `
         <div class="req-item ${profitDaysPct>=100?'req-done':''}">
           <div class="bar-header">
-            <span class="bar-label">Profitable Days (≥${fmt$(minProfitThreshold)}) ${profitDaysPct>=100?'✓':''}</span>
-            <span class="bar-pct">${profitableDays} / ${minProfitDays} days</span>
+            <span class="bar-label">Profitable Days ≥${fmt$(minProfitThreshold)} ${profitDaysPct>=100?'✓':''}</span>
+            <span class="bar-pct">${profitableDays} / ${minProfitDays}</span>
           </div>
           ${bar(profitDaysPct)}
           <div class="bar-sub">
-            <span>${profitDaysPct>=100 ? '✅ Met' : `Need ${minProfitDays-profitableDays} more days with ${fmt$(minProfitThreshold)}+ profit`}</span>
+            <span>${profitDaysPct>=100?'✅ Met':minProfitDays-profitableDays+' more days needed'}</span>
             <span>${(profitDaysPct||0).toFixed(1)}%</span>
           </div>
         </div>` : ''}
 
         <div class="req-item ${rulePass?'req-done':''}">
           <div class="bar-header">
-            <span class="bar-label">Consistency Rule — No day &gt; 30% of gross ${rulePass?'✓':''}</span>
-            <span class="bar-pct">${bestPct.toFixed(1)}% <span style="color:#64748b;font-weight:400">/ 30%</span></span>
+            <span class="bar-label">30% Consistency Rule ${rulePass?'✓':''}</span>
+            <span class="bar-pct">${bestPct.toFixed(1)}% <span style="color:#64748b;font-weight:400">/ 30% max</span></span>
           </div>
           ${bar(cBarPct, cBarColor)}
           <div class="bar-sub">
-            <span>${rulePass ? '✅ Passing' : `Need ${fmt$(stillNeed)} more gross profit`}</span>
-            <span>Best day: ${fmt$(bestDay)}</span>
+            <span>${rulePass?'✅ Passing — best day '+fmt$(bestDay):fmt$(stillNeedRule)+' more gross profit to pass'}</span>
+            <span>Best: ${fmtD(bestEntry?.date)}</span>
           </div>
         </div>
 
       </div>
     </div>
 
-    <!-- Consistency Rule detail + Drawdown side by side -->
-    <div class="two-col">
-
-      <!-- Consistency detail -->
-      <div class="card">
-        <div class="section-title">30% Consistency Rule</div>
-        <div class="stat-grid-3">
-          <div>
-            <div class="mini-label">Gross Profits</div>
-            <div class="mini-val">${fmt$(grossProfit)}</div>
-            <div class="mini-sub">winning days only</div>
-          </div>
-          <div>
-            <div class="mini-label">Best Day</div>
-            <div class="mini-val">${fmt$(bestDay)}</div>
-            <div class="mini-sub">${fmtD(bestEntry?.date)}</div>
-          </div>
-          <div>
-            <div class="mini-label">Max Today</div>
-            <div class="mini-val">${fmt$(maxToday)}</div>
-            <div class="mini-sub">before 30% breach</div>
-          </div>
-          <div>
-            <div class="mini-label">Still Need</div>
-            <div class="mini-val">${rulePass?'—':fmt$(stillNeed)}</div>
-            <div class="mini-sub">to pass rule</div>
-          </div>
-          <div>
-            <div class="mini-label">Net P&amp;L</div>
-            <div class="mini-val">${fmt$(grossProfit)}</div>
-          </div>
-          <div>
-            <div class="mini-label">Days</div>
-            <div class="mini-val">${entries.length}</div>
-            <div class="mini-sub">${wins}W / ${losses}L</div>
-          </div>
+    <!-- ── ACCOUNT STRIP ── -->
+    <div class="card">
+      <div class="acct-strip">
+        <div class="acct-item">
+          <div class="acct-label">Balance</div>
+          <div class="acct-val">${balance||'—'}</div>
+          <div class="acct-sub">current</div>
         </div>
-        <div class="bar-bg" style="margin-bottom:8px"><div class="bar-fill" style="width:${cBarPct}%;background:${cBarColor}"></div></div>
-        <div class="pill ${cPillClass}">${cMsg}</div>
+        <div class="acct-item">
+          <div class="acct-label">Net Profit</div>
+          <div class="acct-val ${netProfit>0?'green':netProfit<0?'red':''}">${fmt$(netProfit)}</div>
+          <div class="acct-sub">vs. ${fmt$(initialBalance)} start</div>
+        </div>
+        <div class="acct-item">
+          <div class="acct-label">Days Traded</div>
+          <div class="acct-val">${entries.length}</div>
+          <div class="acct-sub">${wins}W / ${losses}L</div>
+        </div>
+        <div class="acct-item">
+          <div class="acct-label">Status</div>
+          <div class="acct-val ${status==='Active'?'green':'red'}">${status||'—'}</div>
+          <div class="acct-sub">${accountId||''}</div>
+        </div>
       </div>
-
-      <!-- Drawdown -->
-      <div class="card">
-        <div class="section-title">Trailing Drawdown (${fmt$(trailingLimit)} limit)</div>
-        <div class="stat-grid-4">
-          <div>
-            <div class="mini-label">Current Balance</div>
-            <div class="mini-val">${fmt$(currentBalance)}</div>
-          </div>
-          <div>
-            <div class="mini-label">High Watermark</div>
-            <div class="mini-val">${fmt$(highWatermark)}</div>
-            <div class="mini-sub">all-time high EOD</div>
-          </div>
-          <div>
-            <div class="mini-label">Drawdown Floor</div>
-            <div class="mini-val">${fmt$(floor)}</div>
-            <div class="mini-sub">breach below this</div>
-          </div>
-          <div>
-            <div class="mini-label">Cushion</div>
-            <div class="mini-val" style="color:${ddColor}">${fmt$(cushion)}</div>
-            <div class="mini-sub">remaining</div>
-          </div>
-        </div>
-        <div class="bar-row">
-          <div class="bar-header">
-            <span class="bar-label">Cushion Remaining</span>
-            <span class="bar-pct" style="color:${ddColor}">${ddPct.toFixed(0)}%</span>
-          </div>
-          <div class="bar-bg"><div class="bar-fill" style="width:${ddPct}%;background:${ddColor}"></div></div>
-        </div>
-        <div class="pill ${ddClass}">${fmt$(cushion)} remaining before account breach — floor: ${fmt$(floor)}</div>
-      </div>
-
     </div>
 
-    <!-- Latest / Today session -->
+    <!-- ── TODAY / LATEST SESSION ── -->
     ${ls ? `
     <div class="card">
-      <div class="latest-label">
-        <div class="section-title" style="margin:0">${lsLabel}</div>
-        <span class="badge">${lsIsToday?'Live':'Most Recent'}</span>
+      <div class="section-title" style="margin-bottom:14px">
+        ${lsLabel}<span class="badge">${lsIsToday?'Live':'Most Recent'}</span>
       </div>
-      <div class="stat-grid-4">
+      <div class="session-grid">
         <div>
-          <div class="mini-label">Net P&amp;L</div>
-          <div class="mini-val ${ls.pnl>0?'green':ls.pnl<0?'red':''}">${ls.pnl>=0?'+':''}${fmt$(ls.pnl)}</div>
+          <div class="sess-label">Net P&amp;L</div>
+          <div class="sess-val ${ls.pnl>0?'green':ls.pnl<0?'red':''}">${ls.pnl>=0?'+':''}${fmt$(ls.pnl)}</div>
         </div>
         <div>
-          <div class="mini-label">Gross P&amp;L</div>
-          <div class="mini-val">${fmt$(ls.grossPnl)}</div>
+          <div class="sess-label">Gross P&amp;L</div>
+          <div class="sess-val">${fmt$(ls.grossPnl)}</div>
         </div>
         <div>
-          <div class="mini-label">Adjustment</div>
-          <div class="mini-val ${ls.adjustment<0?'red':''}">${ls.adjustment!==0?(ls.adjustment>0?'+':'')+fmt$(ls.adjustment):'—'}</div>
+          <div class="sess-label">Fills</div>
+          <div class="sess-val">${ls.fills}</div>
         </div>
         <div>
-          <div class="mini-label">Fills</div>
-          <div class="mini-val">${ls.fills}</div>
-          <div class="mini-sub">contracts</div>
+          <div class="sess-label">Adjustment</div>
+          <div class="sess-val ${ls.adjustment<0?'red':ls.adjustment>0?'green':''}">${ls.adjustment!==0?(ls.adjustment>0?'+':'')+fmt$(ls.adjustment):'—'}</div>
         </div>
       </div>
     </div>` : ''}
 
-    <!-- Violations / Adjustments -->
+    <!-- ── ADJUSTMENTS / VIOLATIONS ── -->
     ${adjustments.length ? `
     <div class="card">
-      <div class="section-title">⚠️ Cash Adjustments (Violations)</div>
+      <div class="section-title">⚠️ Cash Adjustments</div>
       ${adjustments.map(a=>`
         <div class="adj-row">
           <div class="adj-date">${a.date||'—'}</div>
@@ -412,16 +350,16 @@ function render(data) {
         </div>`).join('')}
     </div>` : ''}
 
-    <!-- Sessions table -->
+    <!-- ── SESSIONS TABLE ── -->
     <div class="card" style="padding:0">
-      <div style="padding:16px 20px 12px;border-bottom:1px solid #2d3148">
+      <div style="padding:14px 18px 10px;border-bottom:1px solid #2d3148">
         <div class="section-title" style="margin:0">Daily Sessions</div>
       </div>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>Net P&amp;L</th><th>% of Gross</th><th>Notes</th>
+              <th>Date</th><th>Net P&amp;L</th><th>% of Gross</th><th>Fills</th>
             </tr>
           </thead>
           <tbody>
@@ -433,8 +371,8 @@ function render(data) {
               return `<tr>
                 <td>${fmtD(e.date)}${isBest?'<span class="tag tag-best">BEST</span>':''}${isLast?'<span class="tag tag-latest">LATEST</span>':''}</td>
                 <td class="${cls}">${e.pnl>=0?'+':''}${fmt$(e.pnl)}</td>
-                <td style="color:#94a3b8;font-size:0.8rem">${pct}</td>
-                <td style="color:#64748b;font-size:0.78rem">${e.notes||''}</td>
+                <td style="color:#64748b;font-size:0.78rem">${pct}</td>
+                <td style="color:#64748b;font-size:0.78rem">${e.fills||'—'}</td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -444,7 +382,7 @@ function render(data) {
   `;
 
   document.getElementById('sync-time').textContent = data.lastSync
-    ? new Date(data.lastSync).toLocaleString() : '—';
+    ? new Date(data.lastSync).toLocaleTimeString() : '—';
 }
 
 async function load(force=false) {
